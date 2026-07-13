@@ -21,7 +21,7 @@ import {
 const CSS = `
 :root{
   --ink:#1A1A1A; --ink2:#3D3D3D; --paper:#FFFFFF; --bg:#F6F5F1;
-  --gold:#4FC3F7; --gold-soft:#E1F5FE; --gold-dark:#0277BD;
+  --gold:#FFB81C; --gold-soft:#FFF3D6; --gold-dark:#8A6400;
   --line:#E5E2DA; --gray:#8C8C8C; --ai:#4338CA; --ai-soft:#EEF0FF;
   --ok:#1E7A3C; --ok-soft:#E7F4EB; --bad:#B3261E; --bad-soft:#FCEBEA;
   --warn:#946F00;
@@ -41,7 +41,7 @@ const CSS = `
 .logo b{font-size:17px;letter-spacing:0.02em;} .logo span{display:block;font-size:10px;color:#9E9E9E;letter-spacing:0.14em;}
 .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;color:#C9C9C9;background:none;border:none;font-size:13.5px;font-weight:500;text-align:left;width:100%;}
 .nav-item:hover{background:#242424;color:#fff;}
-.nav-item.on{background:#0E2A38;color:var(--gold);font-weight:700;}
+.nav-item.on{background:#2A2415;color:var(--gold);font-weight:700;}
 .nav-item.on svg{color:var(--gold);}
 .rolebox{margin-top:auto;background:#222;border-radius:12px;padding:12px;}
 .rolebox p{font-size:10px;letter-spacing:0.12em;color:#9E9E9E;margin-bottom:8px;}
@@ -57,7 +57,7 @@ const CSS = `
 .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px;}
 .card+.card{margin-top:16px;}
 .btn{display:inline-flex;align-items:center;gap:7px;border-radius:9px;padding:9px 16px;font-size:13.5px;font-weight:600;border:1px solid transparent;}
-.btn.gold{background:var(--gold);color:#1A1A1A;} .btn.gold:hover{background:#29B6F6;}
+.btn.gold{background:var(--gold);color:#1A1A1A;} .btn.gold:hover{background:#F0AC12;}
 .btn.dark{background:var(--ink);color:#fff;} .btn.dark:hover{background:#000;}
 .btn.ghost{background:#fff;border-color:var(--line);color:var(--ink2);} .btn.ghost:hover{border-color:var(--ink2);}
 .btn.ai{background:var(--ai);color:#fff;} .btn.ai:hover{background:#3730A3;}
@@ -66,7 +66,7 @@ const CSS = `
 .btn.sm{padding:6px 11px;font-size:12.5px;border-radius:8px;}
 .btn:disabled{opacity:0.45;cursor:not-allowed;}
 .chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--bg);border:1px solid var(--line);color:var(--ink2);}
-.chip.gold{background:var(--gold-soft);border-color:#90CAF9;color:var(--gold-dark);}
+.chip.gold{background:var(--gold-soft);border-color:#F2D089;color:var(--gold-dark);}
 .chip.ai{background:var(--ai-soft);border-color:#C7CBF5;color:var(--ai);}
 .chip.ok{background:var(--ok-soft);border-color:#BBDFC6;color:var(--ok);}
 .chip.bad{background:var(--bad-soft);border-color:#F0C4C1;color:var(--bad);}
@@ -99,7 +99,7 @@ const CSS = `
 .trow+.trow{margin-top:10px;}
 .trow:hover{border-color:#CFC9BD;}
 .notif{display:flex;gap:12px;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#fff;align-items:flex-start;}
-.notif.unread{background:var(--gold-soft);border-color:#90CAF9;}
+.notif.unread{background:var(--gold-soft);border-color:#F0D9A5;}
 .notif+.notif{margin-top:8px;}
 .check-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px dashed var(--line);border-radius:11px;}
 .check-item.done{border-style:solid;background:var(--ok-soft);border-color:#BBDFC6;}
@@ -298,7 +298,7 @@ function buildPool(cands, req){
 function descargarCV(c){
   const html=`<!doctype html><html lang="es"><meta charset="utf-8"><title>CV ${c.nombre}</title>
   <body style="font-family:Segoe UI,Arial,sans-serif;max-width:720px;margin:40px auto;color:#1A1A1A">
-  <div style="border-bottom:4px solid #4FC3F7;padding-bottom:12px"><h1 style="margin:0">${c.nombre}</h1>
+  <div style="border-bottom:4px solid #FFB81C;padding-bottom:12px"><h1 style="margin:0">${c.nombre}</h1>
   <p style="margin:4px 0;color:#555">${c.puesto} · ${c.nivel} · ${c.ciudad} · ${c.email} · ${c.tel}</p></div>
   <h3>Resumen profesional</h3><p>${c.resumen}</p>
   <h3>Especialidades</h3><p>${c.esp.join(" · ")}</p>
@@ -757,7 +757,7 @@ function VistaDescriptivo({v, cand, onAprobar, onCambios}){
         </div>
       )}
       {v.estado==="cambios" && (
-        <div className="card" style={{background:"var(--gold-soft)",borderColor:"#90CAF9",marginBottom:16}}>
+        <div className="card" style={{background:"var(--gold-soft)",borderColor:"#F0D9A5",marginBottom:16}}>
           <b style={{fontSize:13.5}}><Clock size={14} style={{verticalAlign:-2}}/> Cambios solicitados al administrador</b>
           <p style={{fontSize:13,marginTop:6}}>"{v.cambios}"</p>
           <p className="help">Recibirás una notificación cuando el descriptivo esté actualizado.</p>
@@ -959,7 +959,7 @@ function OfertaTool({v, cand, p, onSend}){
 }
 
 function Celebracion({cand, p, v}){
-  const colores=["#4FC3F7","#29B6F6","#4338CA","#1E7A3C","#fff"];
+  const colores=["#FFB81C","#FFC000","#4338CA","#1E7A3C","#fff"];
   return (
     <div className="celebrate">
       {[...Array(26)].map((_,i)=>(
@@ -1084,7 +1084,7 @@ function VacanteDetail({db, v, run, toast}){
               <span className="help">Ranking recalculado por la IA tras filtros (buró, empleos previos, PLD) y video-entrevista.</span>
             </div>
             {evaluados.map(({cid,p,c},i)=>(
-              <div className="trow" key={cid} style={i<3?{borderColor:"var(--gold)",background:"#F5FBFE"}:{}}>
+              <div className="trow" key={cid} style={i<3?{borderColor:"var(--gold)",background:"#FFFDF6"}:{}}>
                 {i<3 && <span className="chip gold" style={{minWidth:52,justifyContent:"center"}}>Top {i+1}</span>}
                 <MatchRing v={p.matchIA||p.match}/>
                 <Avatar nombre={c.nombre}/>
@@ -1398,7 +1398,7 @@ function CandidatoHome({db, cand, run, toast}){
             {p.estado==="entrevistado" && <Chip tone="gold">Entrevista realizada · el formador está tomando su decisión</Chip>}
 
             {["seleccionado","docs_completos"].includes(p.estado) && (<>
-              <div className="card" style={{background:"var(--gold-soft)",borderColor:"#90CAF9",marginBottom:12}}>
+              <div className="card" style={{background:"var(--gold-soft)",borderColor:"#F0D9A5",marginBottom:12}}>
                 <b>🎉 ¡Felicidades, {cand.nombre.split(" ")[0]}! Fuiste seleccionado(a).</b>
                 <p style={{fontSize:12.5,marginTop:4}}>Siguiente paso: sube tu documentación para preparar tu contratación. <b>Solo PDF · máximo 1 MB por archivo.</b></p>
               </div>
