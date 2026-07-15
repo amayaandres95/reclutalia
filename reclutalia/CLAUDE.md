@@ -77,7 +77,7 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
 | `SUBIDA DE ARCHIVO` | `UploadPDF` (solo PDF, máx 1 MB; prop opcional `onDelete`), `UploadFoto` (imagen JPG/PNG ≤ 2 MB → data URL), `TagPicker`, `TagInput` (chips de texto libre con ✕ al hover, máx N) |
 | `FORMULARIO ESTANDARIZADO DE VACANTE` | `VacanteForm` (wizard de 4 pasos) |
 | `PANEL DEL FORMADOR` | `VacanteDetail`, `FormadorHome`, `NotifList`, modales invitar/agendar/entrevista/oferta, `Celebracion` |
-| `PANEL DEL CANDIDATO` | `CandidatoHome`, `VideoIAModal`, `PostulacionForm` |
+| `PANEL DEL CANDIDATO` | `CandidatoHome`, `VideoIAModal`, `KillerPreguntas` (killer questions compartidas), `PostulacionForm` · **Buscar Vacantes (Batch 3):** `BuscarVacantes` (tarjetas con filtros, orden y favoritos), `DetalleVacanteModal`, `AplicarModal` |
 | `PANEL DE ADMIN` | `AdminPanel`, `CandidatoForm` |
 | `APP` | Componente raíz: shell, sidebar, cambio de rol demo, ruteo por estado |
 
@@ -90,10 +90,15 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
   vacante, invitar, postular, video-IA, agendar, entrevistar, seleccionar, oferta, contratar).
   Cada acción también emite notificaciones vía `notify(...)`. `ACT.guardarCandidato` **reemplaza el
   objeto candidato completo** (no hace merge): quien lo llame debe pasar TODOS los campos.
+  **`ACT.postularDirecto(db, vacId, cid, killersOk, mensaje)`** (Batch 3): postulación por iniciativa
+  del candidato desde "Buscar vacantes" — crea la entrada de `v.pipeline` sin invitación previa ni
+  `v.pool` (calcula el match con `matchScore`); queda `postulado` (notifica al formador) o
+  `filtrado` si falló killers (notifica al candidato).
 - **Modelo del candidato:** campos que lee el match (`esp`, `hard`, `soft`, `nivel`, `exp`,
   `ciudad`, `modalidad`) + descriptivos (`salario`, `edu`, `tipo`, `area`, `puesto`, `resumen`,
   `email`, `tel`) + **campos de perfil editable (Batch 2):** `experiencia[]`, `educacion[]`,
-  `intereses[]`, `foto` (data URL) y `docsPerfil` (INE/CURP/RFC/domicilio/estudios/`certificaciones[]`/cv).
+  `intereses[]`, `foto` (data URL) y `docsPerfil` (INE/CURP/RFC/domicilio/estudios/`certificaciones[]`/cv)
+  + **`favoritos[]`** (Batch 3: ids de vacantes guardadas con el corazón en "Buscar vacantes").
   El candidato los edita en `PerfilEditor` (se abre desde el topbar); en la UI *Habilidades*↔`soft`
   y *Herramientas*↔`hard`. Los arrays `esp/hard/soft` **nunca** deben quedar `undefined` (rompen `matchScore`).
 - **Motor de match (`matchScore`):** determinístico (misma entrada → mismo score). Pesos aprox:
@@ -106,6 +111,16 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
   seleccionado → docs_completos → oferta_enviada → contratado; terminales: filtrado, descartado).
 - **Modo demo:** selector de rol en el sidebar (Formador/Admin/Candidato) + botones
   **"⚡ Simular respuesta del candidato"** (`ACT.simular`) para avanzar el flujo sin cambiar de rol.
+- **Buscar Vacantes (Batch 3):** vista `buscar` del sidebar del candidato. Tarjetas de vacantes
+  `abiertas` (máx 3 por fila, grid `.vac-grid`) con `MatchRing` en vivo, **sin mostrar el código
+  V-xxxx**; filtros por ubicación/nivel/área/sueldo, ordenamiento (compatibilidad, publicación —
+  helper `fechaVal` sobre `v.creada` —, título, sueldo), favoritos (corazón `.heart`) y aplicación
+  directa (`DetalleVacanteModal` → `AplicarModal` → `ACT.postularDirecto`). Si el candidato ya está
+  en el pipeline, la tarjeta y el detalle muestran su `EstadoChip` en lugar de aplicar.
+- **Cierre amable (Batch 3):** en "Mis procesos", los estados `descartado`/`filtrado` ya no muestran
+  chip rojo ni MiniPipe: muestran "La vacante concluyó, gracias por aplicar." + botones
+  **Ver mi feedback** (modal con `p.entrevista.feedback` o mensaje genérico) y **Ver más vacantes**
+  (navega a `buscar` vía prop `onBuscar` de `CandidatoHome`).
 
 ## Sistema de diseño (tokens)
 

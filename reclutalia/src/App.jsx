@@ -14,7 +14,7 @@ import {
   CheckCircle2, XCircle, Sparkles, Video, MapPin, Clock, ChevronRight,
   Send, Building2, GraduationCap, ShieldCheck, PartyPopper, Bot, X,
   Upload, AlertCircle, Edit3, Star, MessageSquare, User, LayoutGrid,
-  ClipboardList, Zap, Link2, CalendarCheck, FileSignature, Home, Filter
+  ClipboardList, Zap, Link2, CalendarCheck, FileSignature, Home, Filter, Heart
 } from "lucide-react";
 
 /* ============================== ESTILOS ============================== */
@@ -137,6 +137,12 @@ img.avatar{object-fit:cover;}
 .table{width:100%;border-collapse:collapse;font-size:13px;}
 .table th{text-align:left;font-size:11px;letter-spacing:0.06em;color:var(--gray);padding:8px 10px;border-bottom:1px solid var(--line);}
 .table td{padding:10px;border-bottom:1px solid #F0EEE7;}
+.vac-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch;}
+@media(max-width:1200px){.vac-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:900px){.vac-grid{grid-template-columns:1fr;}}
+.heart{border:1px solid var(--line);background:#fff;border-radius:99px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;color:var(--gray);flex-shrink:0;}
+.heart:hover{border-color:var(--bad);color:var(--bad);}
+.heart.on{color:var(--bad);border-color:#F0C4C1;background:var(--bad-soft);}
 `;
 
 /* ============================== CATÁLOGOS ============================== */
@@ -174,8 +180,8 @@ const Cd = (id,nombre,tipo,area,puesto,nivel,exp,edu,ciudad,modalidad,salario,es
   {id,nombre,tipo,area,puesto,nivel,exp,edu,ciudad,modalidad,salario,esp,hard,soft,resumen,
    email:nombre.toLowerCase().replace(/[^a-z ]/g,"").split(" ").slice(0,2).join(".")+"@mail.com",
    tel:"55"+String(30000000+id*137137).slice(0,8),
-   // Campos de perfil editable (Batch 2). Aditivos: no los lee matchScore.
-   experiencia:[], educacion:[], intereses:[], foto:null,
+   // Campos de perfil editable (Batch 2) y favoritos (Batch 3). Aditivos: no los lee matchScore.
+   experiencia:[], educacion:[], intereses:[], foto:null, favoritos:[],
    docsPerfil:{ ine:null, curp:null, rfc:null, domicilio:null, estudios:null, certificaciones:[], cv:null }});
 
 const SEED_CANDIDATOS = [
@@ -284,6 +290,14 @@ const uid = (p)=> p + (++_id);
 const hoy = ()=> new Date().toLocaleDateString("es-MX",{day:"2-digit",month:"short",year:"numeric"});
 const hora = ()=> new Date().toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
 const money = (n)=> "$" + Number(n).toLocaleString("es-MX");
+
+/* Convierte fechas "01 jul 2026" (formato de hoy()) en un valor numérico ordenable */
+const MESES_ABR = { ene:0, feb:1, mar:2, abr:3, may:4, jun:5, jul:6, ago:7, sep:8, oct:9, nov:10, dic:11 };
+function fechaVal(s){
+  const m=String(s||"").toLowerCase().match(/(\d{1,2})\s+([a-zñ]{3})\.?\s+(\d{4})/);
+  if(!m) return 0;
+  return Number(m[3])*10000 + (MESES_ABR[m[2]]??0)*100 + Number(m[1]);
+}
 
 /* Próximas fechas de ingreso en inicio de quincena (día 1 o 16) */
 function fechasQuincena(){
@@ -775,6 +789,19 @@ const ACT={
     }
     p.estado="postulado"; p.historial.push("Se postuló y respondió preguntas filtro · "+hoy());
     notify(db,{tipo:"formador",id:v.formadorId},"Nuevo candidato postulado",`${db.candidatos.find(c=>c.id===cid).nombre} aceptó tu invitación y se postuló a ${v.id} · "${v.req.titulo}".`,v.id);
+  },
+  /* El candidato aplica por su cuenta desde "Buscar vacantes" (sin invitación previa) */
+  postularDirecto(db, vacId, cid, killersOk, mensaje){
+    const v=db.vacantes.find(x=>x.id===vacId);
+    const c=db.candidatos.find(x=>x.id===cid);
+    const m=matchScore(c, v.req);
+    if(!killersOk){
+      v.pipeline[cid]={ estado:"filtrado", match:m, mensaje, docsFiltro:{}, docsContrato:{}, historial:["Aplicó desde Buscar vacantes · no superó las preguntas filtro · "+hoy()] };
+      notify(db,{tipo:"candidato",id:cid},"Resultado de tu postulación",`Gracias por tu interés en "${v.req.titulo}". Por ahora tu perfil no cumple los requisitos indispensables; te consideraremos para otras vacantes compatibles.`,v.id);
+      return;
+    }
+    v.pipeline[cid]={ estado:"postulado", match:m, mensaje, docsFiltro:{}, docsContrato:{}, historial:["Se postuló directamente desde Buscar vacantes · "+hoy()] };
+    notify(db,{tipo:"formador",id:v.formadorId},"Nuevo candidato postulado",`${c.nombre} se postuló directamente a ${v.id} · "${v.req.titulo}" desde Buscar vacantes (${m}% de compatibilidad). Mensaje: "${mensaje}"`,v.id);
   },
   docsFiltroListos(db, vacId, cid){
     const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
@@ -1536,9 +1563,10 @@ function VideoIAModal({cand, v, onDone, onClose}){
   );
 }
 
-function CandidatoHome({db, cand, run, toast}){
+function CandidatoHome({db, cand, run, toast, onBuscar}){
   const [videoV,setVideoV]=useState(null);
   const [confirmOferta,setConfirmOferta]=useState(null);
+  const [feedbackDe,setFeedbackDe]=useState(null);
   const [filtro,setFiltro]=useState("todos");
   const procesos=db.vacantes.filter(v=>v.pipeline[cand.id]);
   const esCerrado=(est)=> ["contratado","descartado","filtrado"].includes(est);
@@ -1584,7 +1612,8 @@ function CandidatoHome({db, cand, run, toast}){
               <Chip icon={MapPin}>{v.req.ubicacionTrabajo} · {v.req.modalidad}</Chip>
               <Chip icon={User}>Formador: {formador.nombre}</Chip>
             </div>
-            <div style={{margin:"10px 0 14px",maxWidth:560}}><MiniPipe estado={p.estado}/></div>
+            {!["descartado","filtrado"].includes(p.estado) &&
+              <div style={{margin:"10px 0 14px",maxWidth:560}}><MiniPipe estado={p.estado}/></div>}
 
             {p.estado==="invitado" && (<>
               <div className="aibox" style={{marginBottom:12}}>
@@ -1684,10 +1713,28 @@ function CandidatoHome({db, cand, run, toast}){
               </div>
             )}
 
-            {["descartado","filtrado"].includes(p.estado) && <EstadoChip estado={p.estado}/>}
+            {["descartado","filtrado"].includes(p.estado) && (
+              <div style={{marginTop:12}}>
+                <p style={{fontSize:13.5,marginBottom:10}}>La vacante concluyó, gracias por aplicar.</p>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <button className="btn ghost sm" onClick={()=>setFeedbackDe(v)}><MessageSquare size={13}/> Ver mi feedback</button>
+                  <button className="btn gold sm" onClick={onBuscar}><Search size={13}/> Ver más vacantes</button>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
+      {feedbackDe && (
+        <Modal onClose={()=>setFeedbackDe(null)}>
+          <h3 style={{marginBottom:4}}>Feedback de tu proceso</h3>
+          <p className="help" style={{marginBottom:14}}>{feedbackDe.req.titulo}</p>
+          {feedbackDe.pipeline[cand.id]?.entrevista?.feedback
+            ? <div className="trow"><MessageSquare size={18} color="var(--gold-dark)"/><div style={{flex:1,fontSize:13.5,lineHeight:1.6}}>"{feedbackDe.pipeline[cand.id].entrevista.feedback}"</div></div>
+            : <p style={{fontSize:13.5,lineHeight:1.6}}>Gracias por participar en este proceso. En esta ocasión no fue posible continuar, pero tu perfil seguirá siendo considerado por la IA para futuras vacantes compatibles con tu experiencia.</p>}
+          <button className="btn ghost" style={{marginTop:14}} onClick={()=>setFeedbackDe(null)}>Cerrar</button>
+        </Modal>
+      )}
       {videoV && <VideoIAModal cand={cand} v={videoV} onClose={()=>setVideoV(null)}
         onDone={()=>{run(d=>ACT.videoIA(d,videoV.id,cand.id)); setVideoV(null); toast("Video-entrevista enviada · tu ranking fue actualizado");}}/>}
       {confirmOferta && (
@@ -1704,28 +1751,213 @@ function CandidatoHome({db, cand, run, toast}){
   );
 }
 
+/* Preguntas filtro (killer questions) — compartido por PostulacionForm y AplicarModal */
+function KillerPreguntas({v, resp, setResp}){
+  if(!v.req.killer.length) return null;
+  return (<>
+    <label>Preguntas filtro de la vacante</label>
+    {v.req.killer.map((k,i)=>(
+      <div key={i} className="trow">
+        <div style={{flex:1,fontSize:13}}>{k.q}</div>
+        <div className="tagpick">
+          <button className={"tag"+(resp[i]===true?" on":"")} onClick={()=>setResp(r=>({...r,[i]:true}))}>Sí</button>
+          <button className={"tag"+(resp[i]===false?" on":"")} onClick={()=>setResp(r=>({...r,[i]:false}))}>No</button>
+        </div>
+      </div>
+    ))}
+  </>);
+}
+
 function PostulacionForm({v, onAplicar}){
   const [resp,setResp]=useState({});
   const todas=v.req.killer.every((_,i)=>resp[i]!=null);
   const ok=v.req.killer.every((_,i)=>resp[i]===true);
   return (
     <div>
-      {v.req.killer.length>0 && (<>
-        <label>Preguntas filtro de la vacante</label>
-        {v.req.killer.map((k,i)=>(
-          <div key={i} className="trow">
-            <div style={{flex:1,fontSize:13}}>{k.q}</div>
-            <div className="tagpick">
-              <button className={"tag"+(resp[i]===true?" on":"")} onClick={()=>setResp(r=>({...r,[i]:true}))}>Sí</button>
-              <button className={"tag"+(resp[i]===false?" on":"")} onClick={()=>setResp(r=>({...r,[i]:false}))}>No</button>
-            </div>
-          </div>
-        ))}
-      </>)}
+      <KillerPreguntas v={v} resp={resp} setResp={setResp}/>
       <button className="btn gold" style={{marginTop:12}} disabled={v.req.killer.length>0&&!todas} onClick={()=>onAplicar(ok||v.req.killer.length===0)}>
         <Send size={15}/> Postularme a esta vacante
       </button>
       {v.req.killer.length>0 && <div className="help" style={{marginTop:6}}>Si alguna respuesta no cumple los requisitos indispensables, el sistema cerrará tu postulación automáticamente y te lo notificará.</div>}
+    </div>
+  );
+}
+
+/* ===== Buscar Vacantes (Batch 3): tarjetas, filtros, favoritos y aplicación directa ===== */
+function DetalleVacanteModal({v, cand, p, onAplicar, onClose}){
+  const r=v.req;
+  const Row=({l,c})=><div style={{marginBottom:10}}><label>{l}</label><div style={{fontSize:13.5}}>{c}</div></div>;
+  return (
+    <Modal onClose={onClose} wide>
+      <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16,flexWrap:"wrap"}}>
+        <MatchRing v={matchScore(cand,r)} size={56}/>
+        <div style={{flex:1,minWidth:220}}>
+          <h3>{r.titulo}</h3>
+          <div className="tagpick" style={{marginTop:6}}>
+            <Chip>{r.area}</Chip>
+            <Chip icon={MapPin}>{r.ubicacionTrabajo} · {r.modalidad}</Chip>
+            <Chip>{r.nivelPuesto}</Chip>
+          </div>
+        </div>
+      </div>
+      <div className="grid2">
+        <div>
+          <Row l="Descripción" c={r.descripcion}/>
+          <Row l="Especialidades requeridas" c={<div className="tagpick">{r.espRequeridas.map(e=><span key={e} className="chip gold">{e}</span>)}</div>}/>
+          {r.espOpcionales.length>0 && <Row l="Especialidades opcionales" c={<div className="tagpick">{r.espOpcionales.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>}
+          <Row l="Habilidades técnicas" c={<div className="tagpick">{r.hardSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>
+          <Row l="Habilidades blandas" c={<div className="tagpick">{r.softSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>
+          {r.aptitudes.length>0 && <Row l="Aptitudes a evaluar" c={<div className="tagpick">{r.aptitudes.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>}
+        </div>
+        <div>
+          <div className="grid2">
+            <Row l="Área" c={r.area}/><Row l="Nivel" c={r.nivelPuesto}/>
+            <Row l="Experiencia mínima" c={r.anosExp+" años"}/><Row l="Estudios" c={r.educacion}/>
+            <Row l="Ubicación del trabajo" c={r.ubicacionTrabajo}/><Row l="Modalidad" c={r.modalidad}/>
+            <Row l="Horario" c={r.horario}/><Row l="Días" c={r.dias.join(", ")}/>
+            <Row l="Rango salarial" c={money(r.salarioMin)+" – "+money(r.salarioMax)}/><Row l="Posiciones" c={r.numVacantes}/>
+          </div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:16,alignItems:"center"}}>
+        {p
+          ? <EstadoChip estado={p.estado}/>
+          : <button className="btn gold" onClick={onAplicar}><Send size={15}/> Aplicar a la vacante</button>}
+        <button className="btn ghost" onClick={onClose}>Cerrar</button>
+      </div>
+    </Modal>
+  );
+}
+
+function AplicarModal({cand, v, onSend, onClose}){
+  const def=`Hola, soy ${cand.nombre.split(" ")[0]} y me interesa mucho la vacante "${v.req.titulo}" (${v.req.modalidad}, ${v.req.ubicacionTrabajo}). Considero que mi perfil es compatible y me encantaría participar en el proceso. ¡Saludos!`;
+  const [tipo,setTipo]=useState("default");
+  const [msg,setMsg]=useState(def);
+  const [resp,setResp]=useState({});
+  const todas=v.req.killer.every((_,i)=>resp[i]!=null);
+  const ok=v.req.killer.every((_,i)=>resp[i]===true);
+  return (
+    <Modal onClose={onClose}>
+      <h3 style={{marginBottom:4}}>Aplicar a la vacante</h3>
+      <p className="help" style={{marginBottom:14}}>El formador de "{v.req.titulo}" recibirá tu postulación con tu mensaje (y por correo/WhatsApp en la versión final).</p>
+      <div className="tagpick" style={{marginBottom:12}}>
+        <button className={"tag"+(tipo==="default"?" on":"")} onClick={()=>{setTipo("default");setMsg(def);}}>Mensaje predefinido</button>
+        <button className={"tag"+(tipo==="custom"?" on":"")} onClick={()=>setTipo("custom")}>Personalizar mensaje</button>
+      </div>
+      <textarea rows={4} value={msg} onChange={e=>{setMsg(e.target.value);setTipo("custom");}}/>
+      {v.req.killer.length>0 && (
+        <div style={{marginTop:12}}>
+          <KillerPreguntas v={v} resp={resp} setResp={setResp}/>
+        </div>
+      )}
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        <button className="btn gold" disabled={v.req.killer.length>0&&!todas} onClick={()=>onSend(msg, ok||v.req.killer.length===0)}><Send size={15}/> Enviar postulación</button>
+        <button className="btn ghost" onClick={onClose}>Cancelar</button>
+      </div>
+      {v.req.killer.length>0 && <div className="help" style={{marginTop:8}}>Si alguna respuesta no cumple los requisitos indispensables, el sistema cerrará tu postulación automáticamente y te lo notificará.</div>}
+    </Modal>
+  );
+}
+
+function BuscarVacantes({db, cand, run, toast}){
+  const [fCiudad,setFCiudad]=useState("todas");
+  const [fNivel,setFNivel]=useState("todos");
+  const [fArea,setFArea]=useState("todas");
+  const [fSueldo,setFSueldo]=useState("todos");
+  const [orden,setOrden]=useState("match");
+  const [asc,setAsc]=useState(false);
+  const [soloFav,setSoloFav]=useState(false);
+  const [detalle,setDetalle]=useState(null);
+  const [aplicarA,setAplicarA]=useState(null);
+  const favoritos=cand.favoritos||[];
+  const SUELDOS={ todos:[0,Infinity], s1:[0,15000], s2:[15000,25000], s3:[25000,Infinity] };
+  const lista=db.vacantes.filter(v=>v.estado==="abierta")
+    .filter(v=>fCiudad==="todas"||v.req.ubicacionTrabajo===fCiudad)
+    .filter(v=>fNivel==="todos"||v.req.nivelPuesto===fNivel)
+    .filter(v=>fArea==="todas"||v.req.area===fArea)
+    .filter(v=>{ const [a,b]=SUELDOS[fSueldo]; return v.req.salarioMax>=a && v.req.salarioMin<=b; })
+    .filter(v=>!soloFav||favoritos.includes(v.id))
+    .map(v=>({v, match:matchScore(cand,v.req)}))
+    .sort((x,y)=>{
+      const d= orden==="titulo"? x.v.req.titulo.localeCompare(y.v.req.titulo,"es")
+        : orden==="fecha"? fechaVal(x.v.creada)-fechaVal(y.v.creada)
+        : orden==="sueldo"? x.v.req.salarioMax-y.v.req.salarioMax
+        : x.match-y.match;
+      return asc? d : -d;
+    });
+  const toggleFav=(vid)=> run(d=>{
+    const c=d.candidatos.find(x=>x.id===cand.id);
+    c.favoritos=(c.favoritos||[]).includes(vid)? c.favoritos.filter(f=>f!==vid) : [...(c.favoritos||[]), vid];
+  });
+  const vDet=detalle && db.vacantes.find(v=>v.id===detalle);
+  const vApl=aplicarA && db.vacantes.find(v=>v.id===aplicarA);
+  return (
+    <div>
+      <div className="card" style={{marginBottom:16}}>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
+          <div className="field" style={{marginBottom:0,minWidth:130}}><label>Ubicación</label>
+            <select value={fCiudad} onChange={e=>setFCiudad(e.target.value)}><option value="todas">Todas</option>{CIUDADES.map(c=><option key={c}>{c}</option>)}</select></div>
+          <div className="field" style={{marginBottom:0,minWidth:140}}><label>Nivel de puesto</label>
+            <select value={fNivel} onChange={e=>setFNivel(e.target.value)}><option value="todos">Todos</option>{NIVELES.map(n=><option key={n}>{n}</option>)}</select></div>
+          <div className="field" style={{marginBottom:0,minWidth:150}}><label>Área</label>
+            <select value={fArea} onChange={e=>setFArea(e.target.value)}><option value="todas">Todas</option>{AREAS.map(a=><option key={a}>{a}</option>)}</select></div>
+          <div className="field" style={{marginBottom:0,minWidth:160}}><label>Rango de sueldo</label>
+            <select value={fSueldo} onChange={e=>setFSueldo(e.target.value)}>
+              <option value="todos">Todos</option><option value="s1">Hasta $15,000</option><option value="s2">$15,000 – $25,000</option><option value="s3">Más de $25,000</option>
+            </select></div>
+          <div className="field" style={{marginBottom:0,minWidth:170}}><label>Ordenar por</label>
+            <select value={orden} onChange={e=>{setOrden(e.target.value); setAsc(e.target.value==="titulo");}}>
+              <option value="match">Compatibilidad</option><option value="fecha">Tiempo de publicación</option><option value="titulo">Título (A–Z)</option><option value="sueldo">Sueldo</option>
+            </select></div>
+          <button className="btn ghost sm" onClick={()=>setAsc(a=>!a)} title="Cambiar dirección del ordenamiento">{asc?"↑ Ascendente":"↓ Descendente"}</button>
+          <button className={"tag"+(soloFav?" on":"")} style={{marginLeft:"auto",display:"inline-flex",alignItems:"center",gap:6}} onClick={()=>setSoloFav(f=>!f)}>
+            <Heart size={12} fill={soloFav?"currentColor":"none"}/> Mis vacantes guardadas ({favoritos.length})
+          </button>
+        </div>
+      </div>
+      {!lista.length ? (
+        <div className="card" style={{textAlign:"center",color:"var(--gray)",padding:36}}>
+          {soloFav? "Aún no tienes vacantes guardadas. Usa el corazón de cada tarjeta para guardarlas."
+            : "No hay vacantes abiertas que coincidan con tus filtros. Ajusta los filtros o vuelve a intentarlo más tarde."}
+        </div>
+      ) : (
+        <div className="vac-grid">
+          {lista.map(({v,match})=>{
+            const p=v.pipeline[cand.id];
+            const fav=favoritos.includes(v.id);
+            return (
+              <div className="card" key={v.id} style={{display:"flex",flexDirection:"column",gap:10,margin:0}}>
+                <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <b style={{fontSize:14.5}}>{v.req.titulo}</b>
+                    <div className="tagpick" style={{marginTop:6}}>
+                      <Chip>{v.req.area}</Chip>
+                      <Chip icon={MapPin}>{v.req.ubicacionTrabajo} · {v.req.modalidad}</Chip>
+                      <Chip>{v.req.nivelPuesto}</Chip>
+                    </div>
+                  </div>
+                  <MatchRing v={match}/>
+                </div>
+                <div style={{fontSize:12.5,color:"var(--ink2)",lineHeight:1.5}}>{v.req.descripcion.length>110? v.req.descripcion.slice(0,110).trimEnd()+"…" : v.req.descripcion}</div>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--gold-dark)"}}>{money(v.req.salarioMin)} – {money(v.req.salarioMax)}</div>
+                <div style={{display:"flex",gap:8,alignItems:"center",marginTop:"auto",flexWrap:"wrap"}}>
+                  <button className="btn dark sm" onClick={()=>setDetalle(v.id)}><FileText size={13}/> Ver detalles</button>
+                  {p && <EstadoChip estado={p.estado}/>}
+                  <button className={"heart"+(fav?" on":"")} style={{marginLeft:"auto"}} title={fav?"Quitar de mis vacantes guardadas":"Guardar vacante"} onClick={()=>toggleFav(v.id)}>
+                    <Heart size={15} fill={fav?"currentColor":"none"}/>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {vDet && <DetalleVacanteModal v={vDet} cand={cand} p={vDet.pipeline[cand.id]}
+        onAplicar={()=>{ setAplicarA(vDet.id); setDetalle(null); }}
+        onClose={()=>setDetalle(null)}/>}
+      {vApl && <AplicarModal cand={cand} v={vApl}
+        onSend={(msg,ok)=>{ run(d=>ACT.postularDirecto(d,vApl.id,cand.id,ok,msg)); setAplicarA(null); toast(ok?"¡Postulación enviada!":"Gracias, registramos tus respuestas"); }}
+        onClose={()=>setAplicarA(null)}/>}
     </div>
   );
 }
@@ -1870,7 +2102,7 @@ export default function App(){
     </button>
   );
   const titulos={ inicio: rol==="formador"?"Mis vacantes":rol==="admin"?"Vacantes":"Mis procesos",
-    vacantes:"Vacantes", nueva:"Nueva vacante", candidatos:"Pool de talento (marketplace)", notif:"Centro de notificaciones", vacante: vAb? vAb.req.titulo : "" };
+    vacantes:"Vacantes", nueva:"Nueva vacante", candidatos:"Pool de talento (marketplace)", buscar:"Buscar vacantes", notif:"Centro de notificaciones", vacante: vAb? vAb.req.titulo : "" };
   useEffect(()=>{ setVista("inicio"); setVacAbierta(null); },[rol]);
   return (
     <div className="rk">
@@ -1892,6 +2124,7 @@ export default function App(){
         </>)}
         {rol==="candidato" && (<>
           <NavItem id="inicio" icon={Briefcase}>Mis procesos</NavItem>
+          <NavItem id="buscar" icon={Search}>Buscar vacantes</NavItem>
           <NavItem id="notif" icon={Bell}>Notificaciones {noLeidas>0&&<span className="chip gold" style={{marginLeft:"auto"}}>{noLeidas}</span>}</NavItem>
         </>)}
         <div className="rolebox">
@@ -1938,7 +2171,8 @@ export default function App(){
           {rol==="formador" && vista==="vacante" && vAb && <VacanteDetail db={db} v={vAb} run={run} toast={toast}/>}
           {rol==="admin" && vista!=="notif" && <AdminPanel db={db} run={run} toast={toast} vista={vista==="inicio"?"vacantes":vista} setVista={setVista}/>}
           {rol==="admin" && vista==="notif" && <NotifList db={db} para={para} run={run}/>}
-          {rol==="candidato" && vista==="inicio" && <CandidatoHome db={db} cand={candidato} run={run} toast={toast}/>}
+          {rol==="candidato" && vista==="inicio" && <CandidatoHome db={db} cand={candidato} run={run} toast={toast} onBuscar={()=>setVista("buscar")}/>}
+          {rol==="candidato" && vista==="buscar" && <BuscarVacantes db={db} cand={candidato} run={run} toast={toast}/>}
           {vista==="notif" && rol!=="admin" && <NotifList db={db} para={para} run={run} onGo={rol==="formador"?abrirVac:null}/>}
         </div>
       </div>

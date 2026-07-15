@@ -4,7 +4,7 @@ Plan por batches para ejecutar en Claude Code. Cada batch es autocontenido y se 
 en su propio turno. **Leer primero las Reglas generales.** Marcar cada batch como ✅ al
 terminarlo (editar este archivo).
 
-**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ⬜ · Batch 4 ⬜ · Batch 5 ⬜ · Batch 6 ⬜
+**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ⬜ · Batch 5 ⬜ · Batch 6 ⬜
 
 ---
 
@@ -138,10 +138,20 @@ aprovecharán en el Batch 4 — dejar el dato listo.)*
 
 ---
 
-## BATCH 3 — Buscar Vacantes, favoritos y cierre amable de procesos ⬜
+## BATCH 3 — Buscar Vacantes, favoritos y cierre amable de procesos ✅
 
 (Puntos 5 y 3 — van juntos porque el punto 3 necesita que exista "Buscar Vacantes".)
 **Recomendado ejecutar en modo plan primero.**
+
+> **Implementado.** Nueva vista `buscar` en el sidebar del candidato con `BuscarVacantes`
+> (tarjetas en grid `.vac-grid` máx 3 por fila, `MatchRing` con `matchScore(cand, v.req)`, sin
+> código V-xxxx), filtros ubicación/nivel/área/sueldo, orden asc/desc por compatibilidad ·
+> publicación (helper `fechaVal`) · título · sueldo, favoritos (campo `c.favoritos[]`, corazón
+> `.heart`, toggle "Mis vacantes guardadas"), `DetalleVacanteModal` (wide) y `AplicarModal`
+> (mensaje predefinido/personalizable + killers vía `KillerPreguntas`, extraído de
+> `PostulacionForm`). Nueva acción `ACT.postularDirecto`. Cierre amable: en `descartado`/
+> `filtrado` se muestra "La vacante concluyó, gracias por aplicar." con **Ver mi feedback**
+> (feedback de entrevista o mensaje genérico) y **Ver más vacantes** (prop `onBuscar`).
 
 **3.1 Nueva sección "Buscar Vacantes" en el sidebar del candidato.**
 - Muestra las vacantes con estado `abierta` en **tarjetas, máximo 3 por fila** (grid responsivo).
