@@ -56,6 +56,7 @@ const CSS = `
 .content{padding:24px 28px 80px;max-width:1180px;width:100%;margin:0 auto;}
 .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:20px;}
 .card+.card{margin-top:16px;}
+.card.ok{border-color:var(--ok);background:var(--ok-soft);}
 .btn{display:inline-flex;align-items:center;gap:7px;border-radius:9px;padding:9px 16px;font-size:13.5px;font-weight:600;border:1px solid transparent;}
 .btn.gold{background:var(--gold);color:#1A1A1A;} .btn.gold:hover{background:#F0AC12;}
 .btn.dark{background:var(--ink);color:#fff;} .btn.dark:hover{background:#000;}
@@ -84,6 +85,7 @@ const CSS = `
 .j-step:first-child .bar{border-radius:99px 0 0 99px;} .j-step:last-child .bar{border-radius:0 99px 99px 0;}
 .j-step.done .bar{background:var(--gold);}
 .j-step.now .bar{background:linear-gradient(90deg,var(--gold) 55%,var(--line) 55%);}
+.journey.completa .j-step .bar{background:var(--ok);}
 .j-step .nm{margin-top:7px;font-size:9.5px;line-height:1.15;text-align:center;color:var(--gray);font-weight:600;padding:0 3px;}
 .j-step.done .nm,.j-step.now .nm{color:var(--ink);}
 .j-step.now .nm{color:var(--gold-dark);}
@@ -346,11 +348,11 @@ function Avatar({nombre}){
   return <div className="avatar">{ini}</div>;
 }
 /* Barra Journey de la vacante (10 etapas · 5 fases) */
-function JourneyBar({etapa, compact}){
+function JourneyBar({etapa, compact, completa}){
   return (
-    <div className="journey">
+    <div className={"journey"+(completa?" completa":"")}>
       {JOURNEY.map((s,i)=>(
-        <div key={i} className={"j-step"+(i<etapa?" done":i===etapa?" now":"")}>
+        <div key={i} className={"j-step"+(completa?" done":i<etapa?" done":i===etapa?" now":"")}>
           <div className="bar"/>
           {!compact && <><div className="nm">{i+1}. {s.n}</div><div className="ph">FASE {s.f}</div></>}
         </div>
@@ -480,6 +482,7 @@ function UploadPDF({label, value, onDone}){
       <div style={{flex:1}}>
         <div style={{fontWeight:600,fontSize:13}}>{label}</div>
         <div className="help">{value? `Cargado: ${value}` : "PDF · máximo 1 MB"}</div>
+        <div className="help">Puedes convertir y comprimir tus archivos utilizando herramientas gratuitas en línea.</div>
         {err && <div style={{fontSize:11.5,color:"var(--bad)",marginTop:3}}><AlertCircle size={11} style={{verticalAlign:-1}}/> {err}</div>}
       </div>
       <input type="file" accept="application/pdf" ref={ref} style={{display:"none"}} onChange={pick}/>
@@ -1014,7 +1017,7 @@ function VacanteDetail({db, v, run, toast}){
 
   return (
     <div>
-      <div className="card" style={{marginBottom:16}}>
+      <div className={"card"+(v.estado==="cerrada"?" ok":"")} style={{marginBottom:16}}>
         <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
           <div style={{flex:1,minWidth:240}}>
             <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
@@ -1033,7 +1036,7 @@ function VacanteDetail({db, v, run, toast}){
             </div>
           </div>
         </div>
-        <div style={{marginTop:16}}><JourneyBar etapa={etapaVacante(v)}/></div>
+        <div style={{marginTop:16}}><JourneyBar etapa={etapaVacante(v)} completa={v.estado==="cerrada"}/></div>
       </div>
 
       <div className="tabs">{TABS.map(([t,en],i)=><button key={t} disabled={!en} className={"tab"+(tab===i?" on":"")} onClick={()=>setTab(i)}>{t}</button>)}</div>
@@ -1269,7 +1272,7 @@ function FormadorHome({db, formador, run, onOpen}){
         const et=etapaVacante(v);
         const enProceso=Object.keys(v.pipeline).length;
         return (
-          <div className="card" key={v.id} style={{marginBottom:14,cursor:"pointer"}} onClick={()=>onOpen(v.id)}>
+          <div className={"card"+(v.estado==="cerrada"?" ok":"")} key={v.id} style={{marginBottom:14,cursor:"pointer"}} onClick={()=>onOpen(v.id)}>
             <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
               <b style={{fontSize:15}}>{v.req.titulo}</b><Chip>{v.id}</Chip>
               {v.estado==="asignada"&&<Chip tone="gold" icon={AlertCircle}>Requiere tu revisión</Chip>}
@@ -1279,7 +1282,7 @@ function FormadorHome({db, formador, run, onOpen}){
               <span style={{marginLeft:"auto"}} className="help">{enProceso? enProceso+" candidato(s) en proceso · ":""}Creada {v.creada}</span>
               <ChevronRight size={16} color="var(--gray)"/>
             </div>
-            <div style={{marginTop:12}}><JourneyBar etapa={et}/></div>
+            <div style={{marginTop:12}}><JourneyBar etapa={et} completa={v.estado==="cerrada"}/></div>
           </div>
         );
       })}
@@ -1323,7 +1326,17 @@ function VideoIAModal({cand, v, onDone, onClose}){
 function CandidatoHome({db, cand, run, toast}){
   const [videoV,setVideoV]=useState(null);
   const [confirmOferta,setConfirmOferta]=useState(null);
+  const [filtro,setFiltro]=useState("todos");
   const procesos=db.vacantes.filter(v=>v.pipeline[cand.id]);
+  const esCerrado=(est)=> ["contratado","descartado","filtrado"].includes(est);
+  const cont={ todos:procesos.length,
+    activos:procesos.filter(v=>!esCerrado(v.pipeline[cand.id].estado)).length,
+    cerrados:procesos.filter(v=>esCerrado(v.pipeline[cand.id].estado)).length };
+  const visibles=procesos.filter(v=>{
+    if(filtro==="todos") return true;
+    const cerrado=esCerrado(v.pipeline[cand.id].estado);
+    return filtro==="cerrados"? cerrado : !cerrado;
+  });
   if(!procesos.length) return (
     <div className="card" style={{textAlign:"center",padding:44,color:"var(--gray)"}}>
       <Briefcase size={26} style={{marginBottom:8}}/>
@@ -1333,14 +1346,26 @@ function CandidatoHome({db, cand, run, toast}){
   );
   return (
     <div>
-      {procesos.map(v=>{
+      <div className="tagpick" style={{marginBottom:16}}>
+        <button className={"tag"+(filtro==="todos"?" on":"")} onClick={()=>setFiltro("todos")}>Todos ({cont.todos})</button>
+        <button className={"tag"+(filtro==="activos"?" on":"")} onClick={()=>setFiltro("activos")}>Activos ({cont.activos})</button>
+        <button className={"tag"+(filtro==="cerrados"?" on":"")} onClick={()=>setFiltro("cerrados")}>Cerrados ({cont.cerrados})</button>
+      </div>
+      {!visibles.length && (
+        <div className="card" style={{textAlign:"center",color:"var(--gray)",padding:36}}>
+          {filtro==="activos"? "No tienes procesos activos en este momento."
+            : filtro==="cerrados"? "Aún no tienes procesos cerrados."
+            : "No hay procesos para mostrar."}
+        </div>
+      )}
+      {visibles.map(v=>{
         const p=v.pipeline[cand.id];
         const formador=db.formadores.find(f=>f.id===v.formadorId);
         const filtroDocsOk=p.docsFiltro.buro&&p.docsFiltro.historial;
         const contratoKeys=[["ine","Identificación oficial (INE)"],["curp","CURP"],["rfc","Constancia de situación fiscal (RFC)"],["domicilio","Comprobante de domicilio"],["estudios","Comprobante de estudios"]];
         const contratoOk=contratoKeys.every(([k])=>p.docsContrato[k]);
         return (
-          <div className="card" key={v.id} style={{marginBottom:16}}>
+          <div className={"card"+(p.estado==="contratado"?" ok":"")} key={v.id} style={{marginBottom:16}}>
             <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
               <b style={{fontSize:15}}>{v.req.titulo}</b><Chip>{v.id}</Chip>
               <Chip icon={MapPin}>{v.req.ubicacionTrabajo} · {v.req.modalidad}</Chip>
@@ -1577,7 +1602,7 @@ function AdminPanel({db, run, toast, vista, setVista}){
         <button className="btn gold" onClick={()=>setVista("nueva")}><Plus size={15}/> Nueva vacante</button>
       </div>
       {db.vacantes.map(v=>(
-        <div className="card" key={v.id} style={{marginBottom:12}}>
+        <div className={"card"+(v.estado==="cerrada"?" ok":"")} key={v.id} style={{marginBottom:12}}>
           <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
             <b>{v.req.titulo}</b><Chip>{v.id}</Chip>
             <Chip icon={User}>Formador: {db.formadores.find(f=>f.id===v.formadorId)?.nombre||"—"}</Chip>
@@ -1590,7 +1615,7 @@ function AdminPanel({db, run, toast, vista, setVista}){
             </span>
           </div>
           {v.estado==="cambios" && <div className="card" style={{marginTop:10,background:"var(--bad-soft)",borderColor:"#F0C4C1",padding:"10px 14px",fontSize:12.5}}><b>El formador solicitó:</b> "{v.cambios}"</div>}
-          <div style={{marginTop:12}}><JourneyBar etapa={etapaVacante(v)} compact/></div>
+          <div style={{marginTop:12}}><JourneyBar etapa={etapaVacante(v)} compact completa={v.estado==="cerrada"}/></div>
         </div>
       ))}
       {editV && (
@@ -1629,7 +1654,7 @@ export default function App(){
       <Icon size={16}/>{children}
     </button>
   );
-  const titulos={ inicio: rol==="formador"?"Mis vacantes":rol==="admin"?"Vacantes":"Mi proceso",
+  const titulos={ inicio: rol==="formador"?"Mis vacantes":rol==="admin"?"Vacantes":"Mis procesos",
     vacantes:"Vacantes", nueva:"Nueva vacante", candidatos:"Pool de talento (marketplace)", notif:"Centro de notificaciones", vacante: vAb? vAb.req.titulo : "" };
   useEffect(()=>{ setVista("inicio"); setVacAbierta(null); },[rol]);
   return (
@@ -1651,7 +1676,7 @@ export default function App(){
           <NavItem id="notif" icon={Bell}>Notificaciones {noLeidas>0&&<span className="chip gold" style={{marginLeft:"auto"}}>{noLeidas}</span>}</NavItem>
         </>)}
         {rol==="candidato" && (<>
-          <NavItem id="inicio" icon={Briefcase}>Mi proceso</NavItem>
+          <NavItem id="inicio" icon={Briefcase}>Mis procesos</NavItem>
           <NavItem id="notif" icon={Bell}>Notificaciones {noLeidas>0&&<span className="chip gold" style={{marginLeft:"auto"}}>{noLeidas}</span>}</NavItem>
         </>)}
         <div className="rolebox">
