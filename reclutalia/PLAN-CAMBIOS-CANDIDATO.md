@@ -4,7 +4,7 @@ Plan por batches para ejecutar en Claude Code. Cada batch es autocontenido y se 
 en su propio turno. **Leer primero las Reglas generales.** Marcar cada batch como ✅ al
 terminarlo (editar este archivo).
 
-**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ✅ · Batch 5 ✅ · Batch 6 ⬜
+**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ✅ · Batch 5 ✅ · Batch 6 ✅
 
 ---
 
@@ -257,9 +257,17 @@ y 3 acciones:
 
 ---
 
-## BATCH 6 — Examen médico condicional por vacante ⬜
+## BATCH 6 — Examen médico condicional por vacante ✅
 
 (Punto 11.) Cruza los 3 roles. **Recomendado ejecutar en modo plan primero.**
+
+> **Implementado.** Campo `req.examenMedico` (bool) en `mkReq` (default false) + checkbox en `VacanteForm`
+> paso "4 · Condiciones"; visible en `VistaDescriptivo` y `DetalleVacanteModal`. Activo en la semilla **V-1038**.
+> Nuevo componente `MedicoAgendar` (ubicación estado/ciudad/municipio → 5 sucursales fijas `SUCURSALES_MEDICAS`
+> → fecha `proximosDias(7)`). Nuevo campo de pipeline `p.medico{estado,ciudad,municipio,sucursal,fecha,validado}`.
+> Acciones `ACT.agendarMedico` (candidato, notifica formador) y `ACT.validarMedico` (formador, notifica candidato).
+> `contratoOk` incluye `medicoOk`; `ACT.simular` fast-forwardea agendado+validado. Formador valida desde su tab
+> "Selección y documentos" (botón "Validar resultado positivo del examen"). Pendiente en ámbar (`--warn`).
 
 **6.1 En el formulario de vacante** (`VacanteForm`, sección "4 · Condiciones"): checkbox
 **"¿Esta vacante requiere examen médico al candidato seleccionado?"** → campo

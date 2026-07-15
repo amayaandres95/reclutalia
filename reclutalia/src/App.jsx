@@ -255,7 +255,8 @@ const mkReq = (o)=>({
   titulo:"", area:AREAS[0], descripcion:"", nivelPuesto:"Junior", anosExp:1, educacion:"Licenciatura titulado",
   espRequeridas:[], espOpcionales:[], hardSkills:[], softSkills:[], aptitudes:[],
   killer:[], ubicacionTrabajo:"CDMX", modalidad:"Presencial", ubicacionCandidato:"CDMX", radioKm:25,
-  salarioMin:10000, salarioMax:20000, horario:"9:00 – 18:00", dias:["Lun","Mar","Mié","Jue","Vie"], numVacantes:1, ...o });
+  salarioMin:10000, salarioMax:20000, horario:"9:00 – 18:00", dias:["Lun","Mar","Mié","Jue","Vie"], numVacantes:1,
+  examenMedico:false, ...o });
 
 const SEED_VACANTES = [
   { id:"V-1042", estado:"asignada", formadorId:"F1", creada:"01 jul 2026", pipeline:{}, historial:[], cambios:null,
@@ -275,7 +276,7 @@ const SEED_VACANTES = [
       aptitudes:["Orientación al servicio","Liderazgo de equipos"],
       killer:[{q:"¿Has liderado equipos de 10 o más personas?"}],
       ubicacionTrabajo:"CDMX", modalidad:"Presencial", ubicacionCandidato:"CDMX", radioKm:40,
-      salarioMin:17000, salarioMax:22000, horario:"8:00 – 17:00", numVacantes:1 }) },
+      salarioMin:17000, salarioMax:22000, horario:"8:00 – 17:00", numVacantes:1, examenMedico:true }) },
   { id:"V-1035", estado:"abierta", formadorId:"F2", creada:"18 jun 2026", pipeline:{}, historial:["Aprobada por el formador el 19 jun 2026"], cambios:null,
     req: mkReq({ titulo:"Analista de Datos Sr", area:"Datos y Analítica",
       descripcion:"Construcción de modelos analíticos y tableros para la dirección de crédito. Trabajo cercano con negocio para traducir preguntas en datos.",
@@ -368,6 +369,24 @@ const numEmpleado=(cid)=> String(1000000 + (cid*73573)%9000000).slice(0,7);
 const DIRECCION_CORP = "Av. Insurgentes Sur 3579, Tlalpan, 14000 Ciudad de México, CDMX";
 const mapsUrl = (dir)=> "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(dir||DIRECCION_CORP);
 
+/* Examen médico condicional (Batch 6) — sucursales autorizadas simuladas (siempre las mismas) */
+const SUCURSALES_MEDICAS = [
+  { nombre:"Clínica Salud Integral · Centro", dir:"Av. Juárez 120, Col. Centro" },
+  { nombre:"Laboratorios BienestarMx · Sur", dir:"Calz. de Tlalpan 2100, Col. Country Club" },
+  { nombre:"Centro Médico Empresarial · Norte", dir:"Av. Instituto Politécnico Nacional 1550, Col. Lindavista" },
+  { nombre:"Unidad de Diagnóstico · Poniente", dir:"Av. Observatorio 340, Col. Daniel Garza" },
+  { nombre:"Clínica Ejecutiva · Reforma", dir:"Paseo de la Reforma 450, Col. Juárez" },
+];
+/* Próximos n días (para agendar el examen médico dentro de la próxima semana) */
+function proximosDias(n=7){
+  const out=[]; const d=new Date();
+  for(let i=1;i<=n;i++){
+    const f=new Date(d.getFullYear(), d.getMonth(), d.getDate()+i);
+    out.push(f.toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"}));
+  }
+  return out;
+}
+
 /* Vigencia del examen psicométrico: válido 6 meses desde su realización (Batch 4) */
 const SEIS_MESES_MS = 1000*60*60*24*182;
 const psicoVigente = (p)=> !!(p && p.ts && (Date.now()-p.ts < SEIS_MESES_MS));
@@ -449,13 +468,15 @@ function MiniPipe({estado}){
     </div>
   );
 }
-function EstadoChip({estado}){
+function EstadoChip({estado, candView}){
   const map={ invitado:["Invitado a postularse",""], postulado:["Postulado","gold"], filtros_ok:["Filtros aprobados","ok"],
     video_ia:["Video-IA en curso","ai"], evaluado:["Evaluado por IA","ai"], slots_enviados:["Esperando confirmación de horario",""],
     agendado:["Entrevista agendada","gold"], entrevistado:["Entrevistado","gold"], seleccionado:["Seleccionado","ok"],
     docs_completos:["Documentación completa","ok"], oferta_enviada:["Oferta enviada","gold"], oferta_aceptada:["Oferta aceptada","ok"],
     contratado:["Contratado","ok"], descartado:["Descartado","bad"], filtrado:["No pasó filtros","bad"] };
-  const [t,tone]=map[estado]||[estado,""];
+  let [t,tone]=map[estado]||[estado,""];
+  /* En vistas del candidato, un proceso descartado se comunica como "Cerrada" (la vacante concluyó) */
+  if(candView && estado==="descartado") t="Cerrada";
   return <Chip tone={tone}>{t}</Chip>;
 }
 
@@ -921,6 +942,21 @@ const ACT={
       }
     });
   },
+  /* El candidato agenda su examen médico en una sucursal autorizada (Batch 6) */
+  agendarMedico(db, vacId, cid, datos){
+    const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
+    p.medico={ ...datos, validado:false };
+    p.historial.push(`Examen médico agendado en ${datos.sucursal} · ${datos.fecha} · `+hoy());
+    notify(db,{tipo:"formador",id:v.formadorId},"Examen médico agendado",`${db.candidatos.find(c=>c.id===cid).nombre} agendó su examen médico para "${v.req.titulo}" en ${datos.sucursal} (${datos.fecha}). Valida el resultado en la pestaña "Selección y documentos".`,v.id);
+  },
+  /* El formador valida el resultado positivo del examen médico (Batch 6) */
+  validarMedico(db, vacId, cid){
+    const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
+    if(!p.medico) p.medico={};
+    p.medico.validado=true;
+    p.historial.push("Resultado del examen médico validado por el formador · "+hoy());
+    notify(db,{tipo:"candidato",id:cid},"Examen médico validado",`Tu examen médico para "${v.req.titulo}" fue validado. Ya puedes completar y enviar tu documentación de contratación.`,v.id);
+  },
   docsContratoListos(db, vacId, cid){
     const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
     p.estado="docs_completos"; p.historial.push("Documentación de contratación completa y validada · "+hoy());
@@ -948,7 +984,12 @@ const ACT={
     if(p.estado==="invitado"){ ACT.aplicar(db,vacId,cid,true); filtrosDemo(); ACT.docsFiltroListos(db,vacId,cid); ACT.videoIA(db,vacId,cid); }
     else if(p.estado==="postulado"||p.estado==="filtros_ok"){ filtrosDemo(); ACT.docsFiltroListos(db,vacId,cid); ACT.videoIA(db,vacId,cid); }
     else if(p.estado==="slots_enviados"){ ACT.confirmarSlot(db,vacId,cid,p.slots[0]); }
-    else if(p.estado==="seleccionado"){ p.docsContrato={ine:"ine.pdf",curp:"curp.pdf",rfc:"rfc.pdf",domicilio:"comprobante_domicilio.pdf",estudios:"comprobante_estudios.pdf"}; p.cuentaBanco="012180001234567895"; ACT.docsContratoListos(db,vacId,cid); }
+    else if(p.estado==="seleccionado"){
+      p.docsContrato={ine:"ine.pdf",curp:"curp.pdf",rfc:"rfc.pdf",domicilio:"comprobante_domicilio.pdf",estudios:"comprobante_estudios.pdf"};
+      p.cuentaBanco="012180001234567895";
+      if(v.req.examenMedico){ p.medico={ estado:"Ciudad de México", ciudad:"CDMX", municipio:"Tlalpan", sucursal:SUCURSALES_MEDICAS[0].nombre, fecha:proximosDias(7)[2], validado:true }; }
+      ACT.docsContratoListos(db,vacId,cid);
+    }
     else if(p.estado==="oferta_enviada"){ ACT.aceptarOferta(db,vacId,cid); }
   },
   guardarCandidato(db, cand){
@@ -1040,6 +1081,14 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
             <div className="help">Rango autorizado por Compensaciones (tabulador precargado · simulado).</div>
           </div>
         </div>
+        <div className="field" style={{marginTop:4}}>
+          <label>Examen médico</label>
+          <label className="check-item" style={{cursor:"pointer",fontWeight:400,alignItems:"flex-start"}}>
+            <input type="checkbox" style={{width:"auto",marginTop:2,marginRight:8}} checked={!!r.examenMedico} onChange={e=>set("examenMedico",e.target.checked)}/>
+            <span style={{flex:1,fontSize:13,lineHeight:1.5}}>¿Esta vacante requiere examen médico al candidato seleccionado?</span>
+          </label>
+          <div className="help">Si se activa, el candidato seleccionado deberá agendar y aprobar un examen médico antes de completar su documentación.</div>
+        </div>
       </div>}
 
       <div style={{display:"flex",gap:10,marginTop:18,alignItems:"center"}}>
@@ -1091,6 +1140,7 @@ function VistaDescriptivo({v, cand, onAprobar, onCambios}){
             <Row l="Horario" c={r.horario}/><Row l="Días" c={r.dias.join(", ")}/>
             <Row l="Rango salarial" c={money(r.salarioMin)+" – "+money(r.salarioMax)}/><Row l="Posiciones" c={r.numVacantes}/>
             <Row l="Búsqueda de candidatos" c={`${r.ubicacionCandidato} · radio ${r.radioKm} km`}/>
+            {r.examenMedico && <Row l="Examen médico" c={<Chip tone="gold" icon={ShieldCheck}>Requerido al candidato seleccionado</Chip>}/>}
           </div>
           {r.killer.length>0 && <Row l="Preguntas filtro (killer questions)" c={r.killer.map((k,i)=><div key={i} style={{fontSize:13,marginTop:4}}>• {k.q}</div>)}/>}
           <Row l="Historial" c={v.historial.map((h,i)=><div key={i} className="help">• {h}</div>)}/>
@@ -1505,6 +1555,19 @@ function VacanteDetail({db, v, run, toast}){
                 <div style={{flex:1,fontSize:13,fontWeight:600}}>Cuenta bancaria para nómina</div>
                 <span className="help">{seleccionado.p.cuentaBanco? "Cuenta registrada: ••••"+String(seleccionado.p.cuentaBanco).slice(-4):"Pendiente del candidato"}</span>
               </div>
+              {v.req.examenMedico && (
+                <div className={"check-item"+(seleccionado.p.medico?.validado?" done":"")} style={{alignItems:"flex-start"}}>
+                  {seleccionado.p.medico?.validado? <CheckCircle2 size={18} color="var(--ok)"/> : <ShieldCheck size={18} color={seleccionado.p.medico?"var(--warn)":"var(--gray)"}/>}
+                  <div style={{flex:1,fontSize:13}}>
+                    <div style={{fontWeight:600}}>Examen médico</div>
+                    {seleccionado.p.medico
+                      ? <div className="help">{seleccionado.p.medico.sucursal} · {seleccionado.p.medico.fecha} · {seleccionado.p.medico.validado?"resultado validado":"en espera de tu validación"}</div>
+                      : <div className="help">El candidato aún no agenda su examen médico.</div>}
+                  </div>
+                  {seleccionado.p.medico && !seleccionado.p.medico.validado &&
+                    <button className="btn gold sm" onClick={()=>{run(d=>ACT.validarMedico(d,v.id,seleccionado.cid)); toast("Examen médico validado · se notificó al candidato");}}><CheckCircle2 size={13}/> Validar resultado positivo del examen</button>}
+                </div>
+              )}
               {seleccionado.p.estado!=="seleccionado" && <div className="chip ok" style={{marginTop:12}}><CheckCircle2 size={12}/> Documentación completa — continúa a la carta oferta</div>}
             </div>
           )}
@@ -1643,6 +1706,42 @@ function VideoIAModal({cand, v, onDone, onClose}){
   );
 }
 
+/* Agendar examen médico (Batch 6) — captura de ubicación + 5 sucursales simuladas + fecha próx. 7 días */
+function MedicoAgendar({onAgendar}){
+  const [estado,setEstado]=useState("");
+  const [ciudad,setCiudad]=useState("");
+  const [municipio,setMunicipio]=useState("");
+  const [busco,setBusco]=useState(false);
+  const [suc,setSuc]=useState("");
+  const [fecha,setFecha]=useState("");
+  const dias=useMemo(()=>proximosDias(7),[]);
+  const ubicOk = estado.trim()&&ciudad.trim()&&municipio.trim();
+  return (
+    <div style={{marginTop:8}}>
+      <div className="help" style={{marginBottom:8}}>Agenda tu examen médico dentro de la próxima semana en una sucursal autorizada cercana a tu ubicación.</div>
+      <div className="grid3">
+        <div className="field" style={{marginBottom:8}}><label>Estado</label><input value={estado} onChange={e=>setEstado(e.target.value)} placeholder="p. ej. Ciudad de México"/></div>
+        <div className="field" style={{marginBottom:8}}><label>Ciudad</label><input value={ciudad} onChange={e=>setCiudad(e.target.value)} placeholder="p. ej. CDMX"/></div>
+        <div className="field" style={{marginBottom:8}}><label>Municipio / alcaldía</label><input value={municipio} onChange={e=>setMunicipio(e.target.value)} placeholder="p. ej. Tlalpan"/></div>
+      </div>
+      <button className="btn dark sm" disabled={!ubicOk} onClick={()=>setBusco(true)}><Search size={13}/> Buscar sucursales autorizadas</button>
+      {!ubicOk && <div className="help" style={{marginTop:6}}>Captura tu estado, ciudad y municipio para ver las sucursales cercanas.</div>}
+      {busco && ubicOk && (<>
+        <label style={{marginTop:14}}>Sucursales autorizadas cerca de tu ubicación</label>
+        {SUCURSALES_MEDICAS.map(s=>(
+          <label key={s.nombre} className={"check-item"+(suc===s.nombre?" done":"")} style={{cursor:"pointer",fontWeight:400,marginTop:6}}>
+            <input type="radio" name="sucmed" style={{width:"auto",marginRight:6}} checked={suc===s.nombre} onChange={()=>setSuc(s.nombre)}/>
+            <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{s.nombre}</div><div className="help">{s.dir}</div></div>
+          </label>
+        ))}
+        <div className="field" style={{marginTop:12,marginBottom:8}}><label>Fecha de la cita (dentro de los próximos 7 días)</label>
+          <select value={fecha} onChange={e=>setFecha(e.target.value)}><option value="">Selecciona una fecha…</option>{dias.map(d=><option key={d}>{d}</option>)}</select></div>
+        <button className="btn gold" disabled={!suc||!fecha} onClick={()=>onAgendar({estado,ciudad,municipio,sucursal:suc,fecha})}><CalendarCheck size={15}/> Agendar examen médico</button>
+      </>)}
+    </div>
+  );
+}
+
 function CandidatoHome({db, cand, run, toast, onBuscar}){
   const [videoV,setVideoV]=useState(null);
   const [confirmOferta,setConfirmOferta]=useState(null);
@@ -1687,7 +1786,8 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
         const constancias=p.docsFiltro.constancias||[];
         const filtroDocsOk = constancias.length>=1 && psicoVigente(cand.psicometrico) && p.autorizaFiltros;
         const contratoKeys=[["ine","Identificación oficial (INE)"],["curp","CURP"],["rfc","Constancia de situación fiscal (RFC)"],["domicilio","Comprobante de domicilio"],["estudios","Comprobante de estudios"]];
-        const contratoOk=contratoKeys.every(([k])=>p.docsContrato[k]) && !!p.cuentaBanco;
+        const medicoOk = !v.req.examenMedico || !!(p.medico && p.medico.validado);
+        const contratoOk=contratoKeys.every(([k])=>p.docsContrato[k]) && !!p.cuentaBanco && medicoOk;
         /* Handlers de constancias múltiples (Batch 4) */
         const pipeMut=(fn)=>run(d=>{ fn(d.vacantes.find(x=>x.id===v.id).pipeline[cand.id]); });
         const addConstancia=(n)=>pipeMut(pp=>{ pp.docsFiltro.constancias=[...(pp.docsFiltro.constancias||[]), n]; });
@@ -1713,7 +1813,7 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
 
             {["postulado","filtros_ok"].includes(p.estado) && (<>
               <label>Documentos para filtros iniciales <span style={{fontWeight:400,color:"var(--gray)"}}>(paso 2 de 2)</span></label>
-              <div className="help" style={{marginTop:-2,marginBottom:10}}>Puedes convertir y comprimir tus archivos utilizando herramientas gratuitas en línea.</div>
+              <div className="help" style={{marginTop:-2,marginBottom:10}}>Checklist de documentación del candidato (PDF · máx. 1 MB c/u). Puedes convertir y comprimir tus archivos utilizando herramientas gratuitas en línea.</div>
 
               {/* Constancias de empleos previos — varios archivos */}
               <div style={{fontSize:12.5,fontWeight:600,color:"var(--ink2)",margin:"4px 0 6px"}}>Constancias de empleos previos</div>
@@ -1746,13 +1846,13 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
 
               {/* Nota: datos y documentos del perfil */}
               <div className="help" style={{marginTop:12,marginBottom:2}}>
-                <AlertCircle size={11} style={{verticalAlign:-1}}/> Los datos y documentos de tu perfil (INE, RFC y constancias educativas cargadas en <b>Editar perfil</b>) se utilizarán automáticamente al aplicar a esta vacante.
+                <AlertCircle size={11} style={{verticalAlign:-1}}/> Los datos y documentos de tu perfil (INE, RFC y constancias educativas cargadas en <b>tu perfil</b>) se utilizarán automáticamente al aplicar a esta vacante.
               </div>
 
               {p.estado==="postulado" && (<>
                 {/* Autorización obligatoria */}
                 <label className="check-item" style={{marginTop:12,cursor:"pointer",fontWeight:400,alignItems:"flex-start"}}>
-                  <input type="checkbox" style={{width:"auto",marginTop:2}} checked={!!p.autorizaFiltros}
+                  <input type="checkbox" style={{width:"auto",marginTop:2,marginRight:8}} checked={!!p.autorizaFiltros}
                     onChange={e=>{ const val=e.target.checked; pipeMut(pp=>{ pp.autorizaFiltros=val; }); }}/>
                   <span style={{flex:1,fontSize:13,lineHeight:1.5}}>Autorizo a Reclutalia a procesar mis documentos y a revisar mi historial de crédito y de empleos previos como parte de los filtros iniciales.</span>
                 </label>
@@ -1824,12 +1924,42 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
                 </div>
               </div>
 
+              {/* Examen médico condicional (Batch 6) */}
+              {v.req.examenMedico && (
+                <div style={{marginTop:9}}>
+                  {p.medico && p.medico.validado ? (
+                    <div className="check-item done" style={{alignItems:"flex-start"}}>
+                      <CheckCircle2 size={20} color="var(--ok)"/>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:600,fontSize:13}}>Examen médico validado</div>
+                        <div className="help">{p.medico.sucursal} · {p.medico.fecha} · resultado validado por el formador.</div>
+                      </div>
+                    </div>
+                  ) : p.medico ? (
+                    <div className="check-item" style={{alignItems:"flex-start",borderStyle:"solid",background:"var(--gold-soft)",borderColor:"#F0D9A5"}}>
+                      <Clock size={20} color="var(--warn)"/>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:600,fontSize:13,color:"var(--warn)"}}>Examen médico agendado — en espera de validación</div>
+                        <div className="help">{p.medico.sucursal} · {p.medico.fecha}. Preséntate a tu cita; el formador validará el resultado del examen.</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{border:"1px dashed var(--line)",borderRadius:11,padding:"12px 14px"}}>
+                      <div style={{fontWeight:600,fontSize:13}}>Examen médico</div>
+                      {p.estado==="seleccionado"
+                        ? <MedicoAgendar onAgendar={(datos)=>{ run(d=>ACT.agendarMedico(d,v.id,cand.id,datos)); toast("Examen médico agendado"); }}/>
+                        : <div className="help" style={{marginTop:4}}>Pendiente de agendar.</div>}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {contratoOk && p.estado==="seleccionado" && (
                 <button className="btn gold" style={{marginTop:12}} onClick={()=>{run(d=>ACT.docsContratoListos(d,v.id,cand.id)); toast("Documentación enviada · el formador fue notificado");}}>
                   <CheckCircle2 size={15}/> Enviar documentación completa
                 </button>
               )}
-              {!contratoOk && p.estado==="seleccionado" && <div className="help" style={{marginTop:8}}>Completa todos los documentos y registra tu cuenta bancaria para poder enviar tu documentación.</div>}
+              {!contratoOk && p.estado==="seleccionado" && <div className="help" style={{marginTop:8}}>Completa todos los documentos, registra tu cuenta bancaria{v.req.examenMedico?" y aprueba tu examen médico":""} para poder enviar tu documentación.</div>}
               {p.estado==="docs_completos" && <div className="chip ok" style={{marginTop:10}}><CheckCircle2 size={12}/> Documentación validada · espera tu carta oferta</div>}
             </>)}
 
@@ -1875,7 +2005,7 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
 
             {["descartado","filtrado"].includes(p.estado) && (
               <div style={{marginTop:12}}>
-                <p style={{fontSize:13.5,marginBottom:10}}>La vacante concluyó, gracias por aplicar.</p>
+                <div style={{background:"var(--bad-soft)",border:"1px solid #F0C4C1",borderRadius:10,padding:"10px 14px",fontSize:13.5,fontWeight:600,color:"var(--bad)",marginBottom:10}}>La vacante concluyó, gracias por aplicar.</div>
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   <button className="btn ghost sm" onClick={()=>setFeedbackDe(v)}><MessageSquare size={13}/> Ver mi feedback</button>
                   <button className="btn gold sm" onClick={onBuscar}><Search size={13}/> Ver más vacantes</button>
@@ -2017,11 +2147,12 @@ function DetalleVacanteModal({v, cand, p, onAplicar, onClose}){
             <Row l="Horario" c={r.horario}/><Row l="Días" c={r.dias.join(", ")}/>
             <Row l="Rango salarial" c={money(r.salarioMin)+" – "+money(r.salarioMax)}/><Row l="Posiciones" c={r.numVacantes}/>
           </div>
+          {r.examenMedico && <Row l="Examen médico" c={<Chip tone="gold" icon={ShieldCheck}>Requerido al ser seleccionado(a)</Chip>}/>}
         </div>
       </div>
       <div style={{display:"flex",gap:8,marginTop:16,alignItems:"center"}}>
         {p
-          ? <EstadoChip estado={p.estado}/>
+          ? <EstadoChip estado={p.estado} candView/>
           : <button className="btn gold" onClick={onAplicar}><Send size={15}/> Aplicar a la vacante</button>}
         <button className="btn ghost" onClick={onClose}>Cerrar</button>
       </div>
@@ -2140,9 +2271,10 @@ function BuscarVacantes({db, cand, run, toast}){
                 </div>
                 <div style={{fontSize:12.5,color:"var(--ink2)",lineHeight:1.5}}>{v.req.descripcion.length>110? v.req.descripcion.slice(0,110).trimEnd()+"…" : v.req.descripcion}</div>
                 <div style={{fontSize:13,fontWeight:700,color:"var(--gold-dark)"}}>{money(v.req.salarioMin)} – {money(v.req.salarioMax)}</div>
+                <div className="help" style={{marginTop:-4,display:"flex",alignItems:"center",gap:4}}><Calendar size={11}/> Publicada el {v.creada}</div>
                 <div style={{display:"flex",gap:8,alignItems:"center",marginTop:"auto",flexWrap:"wrap"}}>
                   <button className="btn dark sm" onClick={()=>setDetalle(v.id)}><FileText size={13}/> Ver detalles</button>
-                  {p && <EstadoChip estado={p.estado}/>}
+                  {p && <EstadoChip estado={p.estado} candView/>}
                   <button className={"heart"+(fav?" on":"")} style={{marginLeft:"auto"}} title={fav?"Quitar de mis vacantes guardadas":"Guardar vacante"} onClick={()=>toggleFav(v.id)}>
                     <Heart size={15} fill={fav?"currentColor":"none"}/>
                   </button>

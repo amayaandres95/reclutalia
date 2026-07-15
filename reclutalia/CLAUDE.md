@@ -77,7 +77,8 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
 | `SUBIDA DE ARCHIVO` | `UploadPDF` (solo PDF, máx 1 MB; prop opcional `onDelete`), `UploadFoto` (imagen JPG/PNG ≤ 2 MB → data URL), `TagPicker`, `TagInput` (chips de texto libre con ✕ al hover, máx N) |
 | `FORMULARIO ESTANDARIZADO DE VACANTE` | `VacanteForm` (wizard de 4 pasos) |
 | `PANEL DEL FORMADOR` | `VacanteDetail`, `FormadorHome`, `NotifList`, modales invitar/agendar/entrevista/oferta, `Celebracion` |
-| `PANEL DEL CANDIDATO` | `CandidatoHome`, `VideoIAModal`, `KillerPreguntas` (killer questions compartidas), `PostulacionForm`, `CuentaBancoModal` (captura de número de cuenta/CLABE, Batch 5) · **Buscar Vacantes (Batch 3):** `BuscarVacantes` (tarjetas con filtros, orden y favoritos), `DetalleVacanteModal` (resalta en verde lo que coincide con el perfil del candidato), `AplicarModal` |
+| `PANEL DEL CANDIDATO` | `CandidatoHome`, `VideoIAModal`, `KillerPreguntas` (killer questions compartidas), `PostulacionForm`, `CuentaBancoModal` (captura de número de cuenta/CLABE, Batch 5) · `MedicoAgendar` (Batch 6: captura
+ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana para el examen médico) · **Buscar Vacantes (Batch 3):** `BuscarVacantes` (tarjetas con filtros, orden y favoritos), `DetalleVacanteModal` (resalta en verde lo que coincide con el perfil del candidato), `AplicarModal` |
 | `PANEL DE ADMIN` | `AdminPanel`, `CandidatoForm` |
 | `APP` | Componente raíz: shell, sidebar, cambio de rol demo, ruteo por estado |
 
@@ -98,6 +99,9 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
   candidato (vigencia 6 meses, helpers `psicoVigente`/`psicoVigenteHasta`).
   **`ACT.enviarOferta(db, vacId, cid, monto, fecha, ubicacion)`** (Batch 5): ahora recibe `ubicacion`
   (dirección de presentación) y la guarda en `p.oferta.ubicacion` (default `DIRECCION_CORP`).
+  **`ACT.agendarMedico(db, vacId, cid, datos)`** y **`ACT.validarMedico(db, vacId, cid)`** (Batch 6):
+  examen médico condicional. El candidato agenda (`p.medico={estado,ciudad,municipio,sucursal,fecha,validado:false}`,
+  notifica al formador) y el formador valida el resultado (`p.medico.validado=true`, notifica al candidato).
 - **Modelo del candidato:** campos que lee el match (`esp`, `hard`, `soft`, `nivel`, `exp`,
   `ciudad`, `modalidad`) + descriptivos (`salario`, `edu`, `tipo`, `area`, `puesto`, `resumen`,
   `email`, `tel`) + **campos de perfil editable (Batch 2):** `experiencia[]`, `educacion[]`,
@@ -109,7 +113,13 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
   y *Herramientas*↔`hard`. Los arrays `esp/hard/soft` **nunca** deben quedar `undefined` (rompen `matchScore`).
   **Campos por vacante en `v.pipeline[cid]`:** `docsFiltro.constancias[]` (Batch 4: constancias de
   empleos previos, múltiples), `autorizaFiltros` (bool del checkbox de autorización, Batch 4),
-  `docsContrato{}`, `cuentaBanco` (string cuenta/CLABE, Batch 5), `oferta{monto,fecha,ubicacion}`.
+  `docsContrato{}`, `cuentaBanco` (string cuenta/CLABE, Batch 5), `oferta{monto,fecha,ubicacion}`,
+  `medico{estado,ciudad,municipio,sucursal,fecha,validado}` (Batch 6: examen médico agendado por el
+  candidato y validado por el formador; solo si `v.req.examenMedico`).
+  **Campo en `v.req`:** `examenMedico` (bool, default false; Batch 6): si es true, el candidato
+  seleccionado debe agendar y aprobar un examen médico antes de completar su documentación.
+  Semilla: activo en la vacante **V-1038**. Catálogo `SUCURSALES_MEDICAS` (5 sucursales simuladas)
+  y helper `proximosDias(n)` (fechas para agendar dentro de la próxima semana).
 - **Motor de match (`matchScore`):** determinístico (misma entrada → mismo score). Pesos aprox:
   especialidades req ~34, hard skills ~24, nivel ~12, soft ~8, experiencia ~8, opcionales ~6,
   ubicación/radio ~7, modalidad ~3; jitter determinístico; tope 98; **umbral de descarte ~28**.
@@ -145,6 +155,15 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
   `p.oferta.ubicacion` (default `DIRECCION_CORP`); se muestra en la carta oferta del candidato, en la
   bienvenida (`contratado`) y en la `Celebracion` del formador, con botón **Ver en Google Maps**
   (helper `mapsUrl`).
+- **Examen médico condicional (Batch 6):** checkbox `req.examenMedico` en `VacanteForm` (paso "4 · Condiciones");
+  visible en ambos descriptivos (`VistaDescriptivo` y `DetalleVacanteModal`). Si está activo, en el checklist
+  de contratación del candidato (`seleccionado`) aparece el requisito **Examen médico**: captura estado/ciudad/
+  municipio, "Buscar sucursales" (5 fijas de `SUCURSALES_MEDICAS`), elige sucursal + fecha (`proximosDias(7)`) y
+  agenda (`ACT.agendarMedico`). Queda en **pendiente ámbar** (`--warn`/`--gold-soft`) hasta que el formador lo valide
+  desde su tab "Selección y documentos" con **Validar resultado positivo del examen** (`ACT.validarMedico`) → verde.
+  La documentación NO se considera completa (`medicoOk` en `contratoOk`) hasta la validación. `ACT.simular`
+  fast-forwardea agendado+validado. Cierre amable / status del candidato: `EstadoChip` acepta prop `candView`
+  que muestra "Cerrada" en lugar de "Descartado" en vistas del candidato.
 - **Resaltado de coincidencias:** el candidato ve en verde (chip `ok` con ✓) sus habilidades/herramientas/
   especialidades que coinciden con el descriptivo en `DetalleVacanteModal`; el formador ve en verde las
   del candidato que coinciden con la vacante en `PerfilModal` (prop `req`).
