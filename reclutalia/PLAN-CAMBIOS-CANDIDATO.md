@@ -4,7 +4,7 @@ Plan por batches para ejecutar en Claude Code. Cada batch es autocontenido y se 
 en su propio turno. **Leer primero las Reglas generales.** Marcar cada batch como ✅ al
 terminarlo (editar este archivo).
 
-**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ⬜ · Batch 5 ⬜ · Batch 6 ⬜
+**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ✅ · Batch 5 ✅ · Batch 6 ⬜
 
 ---
 
@@ -188,7 +188,7 @@ Cuando el candidato está `descartado` o `filtrado`, reemplazar los textos actua
 
 ---
 
-## BATCH 4 — Rework de documentos de filtros iniciales ⬜
+## BATCH 4 — Rework de documentos de filtros iniciales ✅
 
 (Puntos 9 y 10 — misma pantalla: estados `postulado`/`filtros_ok` del candidato.)
 Requiere Batch 2 terminado (usa los documentos del perfil).
@@ -223,7 +223,7 @@ psicométrico completado + checkbox marcado.
 
 ---
 
-## BATCH 5 — Contratación: cuenta bancaria y ubicación de ingreso ⬜
+## BATCH 5 — Contratación: cuenta bancaria y ubicación de ingreso ✅
 
 (Puntos 7 y 8 — etapa de contratación.)
 

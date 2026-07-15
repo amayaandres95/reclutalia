@@ -71,13 +71,13 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
 | `CATÁLOGOS` | Áreas, niveles, skills, aptitudes, `JOURNEY` (10 pasos), `PIPE` (pipeline candidato) |
 | `DATOS SEMILLA` | 32 candidatos, 3 vacantes, 2 formadores, 1 admin |
 | `UTILIDADES` | `matchScore`/`buildPool` (motor de match simulado), `descargarCV`, helpers de fecha/dinero |
-| `COMPONENTES BASE` | `Modal`, `Chip`, `MatchRing`, `Avatar` (acepta prop `foto`), `JourneyBar`, `MiniPipe`, `EstadoChip` |
+| `COMPONENTES BASE` | `Modal`, `Chip`, `MatchRing`, `Avatar` (acepta prop `foto`), `JourneyBar`, `MiniPipe`, `EstadoChip`, `QRDemo` (QR decorativo estático, Batch 5) |
 | `BOT DE APOYO` | Bot flotante FAQ (transversal) |
-| `PERFIL DE CANDIDATO` | `PerfilModal` (solo lectura, lo ve el formador) · `PerfilEditor` (editor del propio candidato: modal `wide` con pestañas *Mi perfil* / *Mis documentos*) |
+| `PERFIL DE CANDIDATO` | `PerfilModal` (solo lectura, lo ve el formador; prop opcional `req` → resalta en verde esp/hard/soft del candidato que coinciden con la vacante) · `PerfilEditor` (editor del propio candidato: modal `wide` con pestañas *Mi perfil* / *Mis documentos*) |
 | `SUBIDA DE ARCHIVO` | `UploadPDF` (solo PDF, máx 1 MB; prop opcional `onDelete`), `UploadFoto` (imagen JPG/PNG ≤ 2 MB → data URL), `TagPicker`, `TagInput` (chips de texto libre con ✕ al hover, máx N) |
 | `FORMULARIO ESTANDARIZADO DE VACANTE` | `VacanteForm` (wizard de 4 pasos) |
 | `PANEL DEL FORMADOR` | `VacanteDetail`, `FormadorHome`, `NotifList`, modales invitar/agendar/entrevista/oferta, `Celebracion` |
-| `PANEL DEL CANDIDATO` | `CandidatoHome`, `VideoIAModal`, `KillerPreguntas` (killer questions compartidas), `PostulacionForm` · **Buscar Vacantes (Batch 3):** `BuscarVacantes` (tarjetas con filtros, orden y favoritos), `DetalleVacanteModal`, `AplicarModal` |
+| `PANEL DEL CANDIDATO` | `CandidatoHome`, `VideoIAModal`, `KillerPreguntas` (killer questions compartidas), `PostulacionForm`, `CuentaBancoModal` (captura de número de cuenta/CLABE, Batch 5) · **Buscar Vacantes (Batch 3):** `BuscarVacantes` (tarjetas con filtros, orden y favoritos), `DetalleVacanteModal` (resalta en verde lo que coincide con el perfil del candidato), `AplicarModal` |
 | `PANEL DE ADMIN` | `AdminPanel`, `CandidatoForm` |
 | `APP` | Componente raíz: shell, sidebar, cambio de rol demo, ruteo por estado |
 
@@ -94,13 +94,22 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
   del candidato desde "Buscar vacantes" — crea la entrada de `v.pipeline` sin invitación previa ni
   `v.pool` (calcula el match con `matchScore`); queda `postulado` (notifica al formador) o
   `filtrado` si falló killers (notifica al candidato).
+  **`ACT.completarPsicometrico(db, cid)`** (Batch 4): registra `c.psicometrico={fecha,ts}` a nivel
+  candidato (vigencia 6 meses, helpers `psicoVigente`/`psicoVigenteHasta`).
+  **`ACT.enviarOferta(db, vacId, cid, monto, fecha, ubicacion)`** (Batch 5): ahora recibe `ubicacion`
+  (dirección de presentación) y la guarda en `p.oferta.ubicacion` (default `DIRECCION_CORP`).
 - **Modelo del candidato:** campos que lee el match (`esp`, `hard`, `soft`, `nivel`, `exp`,
   `ciudad`, `modalidad`) + descriptivos (`salario`, `edu`, `tipo`, `area`, `puesto`, `resumen`,
   `email`, `tel`) + **campos de perfil editable (Batch 2):** `experiencia[]`, `educacion[]`,
   `intereses[]`, `foto` (data URL) y `docsPerfil` (INE/CURP/RFC/domicilio/estudios/`certificaciones[]`/cv)
-  + **`favoritos[]`** (Batch 3: ids de vacantes guardadas con el corazón en "Buscar vacantes").
+  + **`favoritos[]`** (Batch 3: ids de vacantes guardadas con el corazón en "Buscar vacantes")
+  + **`psicometrico`** (Batch 4: `{fecha,ts}` o `null`; examen a NIVEL candidato, vigente 6 meses,
+  se reutiliza en todas las vacantes).
   El candidato los edita en `PerfilEditor` (se abre desde el topbar); en la UI *Habilidades*↔`soft`
   y *Herramientas*↔`hard`. Los arrays `esp/hard/soft` **nunca** deben quedar `undefined` (rompen `matchScore`).
+  **Campos por vacante en `v.pipeline[cid]`:** `docsFiltro.constancias[]` (Batch 4: constancias de
+  empleos previos, múltiples), `autorizaFiltros` (bool del checkbox de autorización, Batch 4),
+  `docsContrato{}`, `cuentaBanco` (string cuenta/CLABE, Batch 5), `oferta{monto,fecha,ubicacion}`.
 - **Motor de match (`matchScore`):** determinístico (misma entrada → mismo score). Pesos aprox:
   especialidades req ~34, hard skills ~24, nivel ~12, soft ~8, experiencia ~8, opcionales ~6,
   ubicación/radio ~7, modalidad ~3; jitter determinístico; tope 98; **umbral de descarte ~28**.
@@ -121,6 +130,24 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
   chip rojo ni MiniPipe: muestran "La vacante concluyó, gracias por aplicar." + botones
   **Ver mi feedback** (modal con `p.entrevista.feedback` o mensaje genérico) y **Ver más vacantes**
   (navega a `buscar` vía prop `onBuscar` de `CandidatoHome`).
+- **Filtros iniciales (Batch 4):** estados `postulado`/`filtros_ok` en `CandidatoHome`. Ya NO se pide
+  buró de crédito. Se pide: **constancias de empleos previos** (múltiples PDFs vía `UploadPDF`,
+  guardadas en `p.docsFiltro.constancias[]`), **examen psicométrico** (botón que simula completarlo →
+  `ACT.completarPsicometrico`; a nivel candidato, vigente 6 meses, pre-completado en otras vacantes)
+  y un **checkbox de autorización** obligatorio (`p.autorizaFiltros`). El botón "Enviar a validación
+  automática" se habilita solo con ≥1 constancia + psicométrico vigente + checkbox marcado. Nota fija:
+  los datos/documentos del perfil (INE/RFC/constancias educativas) se reutilizan al aplicar.
+- **Contratación (Batch 5):** en el checklist del candidato (`seleccionado`) además de los 5 PDFs se pide
+  **"Cuenta bancaria para nómina"** con 3 acciones: abrir apertura de cuenta (`abrirAperturaCuenta`,
+  página blob simulada), **Ver QR** (`QRDemo`) e **Ingresar/editar número de cuenta** (`CuentaBancoModal`
+  → `p.cuentaBanco`). La documentación no está completa sin `cuentaBanco`. El formador lo ve en su
+  checklist de solo lectura. **Ubicación de presentación:** `OfertaTool` captura la dirección →
+  `p.oferta.ubicacion` (default `DIRECCION_CORP`); se muestra en la carta oferta del candidato, en la
+  bienvenida (`contratado`) y en la `Celebracion` del formador, con botón **Ver en Google Maps**
+  (helper `mapsUrl`).
+- **Resaltado de coincidencias:** el candidato ve en verde (chip `ok` con ✓) sus habilidades/herramientas/
+  especialidades que coinciden con el descriptivo en `DetalleVacanteModal`; el formador ve en verde las
+  del candidato que coinciden con la vacante en `PerfilModal` (prop `req`).
 
 ## Sistema de diseño (tokens)
 

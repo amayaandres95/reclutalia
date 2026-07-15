@@ -14,7 +14,8 @@ import {
   CheckCircle2, XCircle, Sparkles, Video, MapPin, Clock, ChevronRight,
   Send, Building2, GraduationCap, ShieldCheck, PartyPopper, Bot, X,
   Upload, AlertCircle, Edit3, Star, MessageSquare, User, LayoutGrid,
-  ClipboardList, Zap, Link2, CalendarCheck, FileSignature, Home, Filter, Heart
+  ClipboardList, Zap, Link2, CalendarCheck, FileSignature, Home, Filter, Heart,
+  QrCode, Landmark, ExternalLink, ClipboardCheck
 } from "lucide-react";
 
 /* ============================== ESTILOS ============================== */
@@ -182,6 +183,8 @@ const Cd = (id,nombre,tipo,area,puesto,nivel,exp,edu,ciudad,modalidad,salario,es
    tel:"55"+String(30000000+id*137137).slice(0,8),
    // Campos de perfil editable (Batch 2) y favoritos (Batch 3). Aditivos: no los lee matchScore.
    experiencia:[], educacion:[], intereses:[], foto:null, favoritos:[],
+   // Examen psicométrico a nivel candidato (Batch 4). Vigencia 6 meses; null = no realizado.
+   psicometrico:null,
    docsPerfil:{ ine:null, curp:null, rfc:null, domicilio:null, estudios:null, certificaciones:[], cv:null }});
 
 const SEED_CANDIDATOS = [
@@ -361,6 +364,34 @@ function descargarCV(c){
 
 const numEmpleado=(cid)=> String(1000000 + (cid*73573)%9000000).slice(0,7);
 
+/* Dirección corporativa por defecto para la presentación de ingreso (Batch 5 · demo) */
+const DIRECCION_CORP = "Av. Insurgentes Sur 3579, Tlalpan, 14000 Ciudad de México, CDMX";
+const mapsUrl = (dir)=> "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(dir||DIRECCION_CORP);
+
+/* Vigencia del examen psicométrico: válido 6 meses desde su realización (Batch 4) */
+const SEIS_MESES_MS = 1000*60*60*24*182;
+const psicoVigente = (p)=> !!(p && p.ts && (Date.now()-p.ts < SEIS_MESES_MS));
+function psicoVigenteHasta(p){
+  if(!p || !p.ts) return "";
+  const d=new Date(p.ts+SEIS_MESES_MS);
+  return d.toLocaleDateString("es-MX",{day:"2-digit",month:"short",year:"numeric"});
+}
+
+/* Página simulada de apertura de cuenta de nómina (Batch 5) */
+function abrirAperturaCuenta(){
+  const html=`<!doctype html><html lang="es"><meta charset="utf-8"><title>Apertura de cuenta de nómina</title>
+  <body style="font-family:Segoe UI,Arial,sans-serif;max-width:560px;margin:60px auto;color:#1A1A1A;text-align:center">
+  <div style="border-top:6px solid #FFB81C;border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,.12);padding:36px">
+  <h1 style="margin:0 0 6px">Apertura de cuenta de nómina</h1>
+  <p style="color:#8A6400;font-weight:600;margin:0 0 20px">Portal del banco (simulado · demo Reclutalia)</p>
+  <p style="line-height:1.6;color:#3D3D3D">En la versión final, este enlace abrirá el portal del banco para que abras tu cuenta de nómina en línea con tu INE y RFC. Al terminar recibirás tu número de cuenta / CLABE, que deberás capturar en Reclutalia.</p>
+  <p style="margin-top:26px;font-size:12px;color:#999">Esta es una página de demostración; no se captura ni envía información real.</p>
+  </div></body></html>`;
+  const blob=new Blob([html],{type:"text/html"});
+  const url=URL.createObjectURL(blob);
+  window.open(url,"_blank"); setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+
 /* ============================== COMPONENTES BASE ============================== */
 function Modal({onClose, children, wide}){
   return (
@@ -428,6 +459,28 @@ function EstadoChip({estado}){
   return <Chip tone={tone}>{t}</Chip>;
 }
 
+/* QR decorativo estático (simulado) — no es escaneable, solo apariencia (Batch 5) */
+function QRDemo({size=180}){
+  const N=21, cell=size/N;
+  const isFinder=(r,c)=>{
+    const inBox=(br,bc)=> r>=br&&r<br+7&&c>=bc&&c<bc+7;
+    const ring=(br,bc)=> inBox(br,bc) && (r===br||r===br+6||c===bc||c===bc+6 || (r>=br+2&&r<=br+4&&c>=bc+2&&c<=bc+4));
+    return ring(0,0)||ring(0,N-7)||ring(N-7,0);
+  };
+  const inFinderZone=(r,c)=> (r<8&&c<8)||(r<8&&c>=N-8)||(r>=N-8&&c<8);
+  const cells=[];
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    if(isFinder(r,c)){ cells.push([r,c]); continue; }
+    if(inFinderZone(r,c)) continue;
+    if(((r*7+c*13+r*c*3)%5)===0 || ((r+c)%3===0 && (r*c)%2===0)) cells.push([r,c]);
+  }
+  return (
+    <svg width={size} height={size} role="img" aria-label="Código QR (simulado)" style={{background:"#fff",borderRadius:10,border:"1px solid var(--line)"}}>
+      {cells.map(([r,c],i)=><rect key={i} x={c*cell} y={r*cell} width={cell} height={cell} fill="#1A1A1A"/>)}
+    </svg>
+  );
+}
+
 /* Cálculo de etapa (0-9) de la vacante en el Journey */
 function etapaVacante(v){
   if(v.estado==="borrador"||v.estado==="asignada"||v.estado==="cambios") return 0;
@@ -449,7 +502,7 @@ function etapaVacante(v){
 const BOT_FAQ=[
   {q:"¿Qué es el pool de talento?", a:"Es el marketplace de candidatos internos y externos preregistrados. Al aprobar tu vacante, la IA busca, filtra y ranquea automáticamente los perfiles más compatibles."},
   {q:"¿Cómo funciona el ranking con IA?", a:"El agente de IA compara especialidades, habilidades, nivel, experiencia y ubicación contra tu vacante y asigna un match de 0 a 100%. Se actualiza tras la video-entrevista y la entrevista contigo."},
-  {q:"¿Qué documentos sube el candidato?", a:"Para filtros: autorización de buró e historial laboral. Para contratación: INE, CURP, RFC, comprobante de domicilio y comprobante de estudios. Solo PDF, máximo 1 MB por archivo."},
+  {q:"¿Qué documentos sube el candidato?", a:"Para filtros iniciales: constancias de empleos previos y el examen psicométrico (válido 6 meses). Para contratación: INE, CURP, RFC, comprobante de domicilio, comprobante de estudios y su cuenta bancaria para nómina. Solo PDF, máximo 1 MB por archivo."},
   {q:"¿Puedo cambiar la vacante que me asignaron?", a:"Sí. Antes de aprobarla puedes solicitar cambios al administrador desde la pestaña Descriptivo; recibirás una notificación cuando esté actualizada."},
   {q:"¿Cómo agendo entrevistas?", a:"Al invitar candidatos a entrevista conectas tu calendario de Outlook/Teams (simulado) y propones 3 horarios; el candidato confirma uno y ambos reciben el enlace de Teams."},
 ];
@@ -482,7 +535,14 @@ function BotSoporte(){
 }
 
 /* ============================== PERFIL DE CANDIDATO (modal) ============================== */
-function PerfilModal({cand, match, onClose, extra}){
+function PerfilModal({cand, match, onClose, extra, req}){
+  /* Resalta en verde lo que el candidato tiene y coincide con el descriptivo de la vacante */
+  const espHit=(e)=> req && (req.espRequeridas.includes(e)||req.espOpcionales.includes(e));
+  const hardHit=(e)=> req && req.hardSkills.includes(e);
+  const softHit=(e)=> req && req.softSkills.includes(e);
+  const MC=({e,hit,base})=>(
+    <span className={"chip "+(hit?"ok":base||"")}>{hit && <CheckCircle2 size={11}/>}{e}</span>
+  );
   return (
     <Modal onClose={onClose} wide>
       <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:16}}>
@@ -500,11 +560,12 @@ function PerfilModal({cand, match, onClose, extra}){
         {match!=null && <MatchRing v={match} size={64}/>}
       </div>
       <p style={{fontSize:13.5,lineHeight:1.55,marginBottom:14}}>{cand.resumen}</p>
+      {req && <div className="chip ok" style={{marginBottom:12}}><CheckCircle2 size={12}/> En verde: coincidencias con el descriptivo de la vacante</div>}
       <div className="grid2">
-        <div><label>Especialidades</label><div className="tagpick">{cand.esp.map(e=><span key={e} className="chip gold">{e}</span>)}</div></div>
+        <div><label>Especialidades</label><div className="tagpick">{cand.esp.map(e=><MC key={e} e={e} hit={espHit(e)} base="gold"/>)}</div></div>
         <div><label>Modalidad y expectativa</label><div className="tagpick"><Chip>{cand.modalidad}</Chip><Chip>{money(cand.salario)} /mes esperado</Chip></div></div>
-        <div><label>Habilidades técnicas</label><div className="tagpick">{cand.hard.map(e=><span key={e} className="chip">{e}</span>)}</div></div>
-        <div><label>Habilidades blandas</label><div className="tagpick">{cand.soft.map(e=><span key={e} className="chip">{e}</span>)}</div></div>
+        <div><label>Habilidades técnicas</label><div className="tagpick">{cand.hard.map(e=><MC key={e} e={e} hit={hardHit(e)}/>)}</div></div>
+        <div><label>Habilidades blandas</label><div className="tagpick">{cand.soft.map(e=><MC key={e} e={e} hit={softHit(e)}/>)}</div></div>
       </div>
       <div style={{display:"flex",gap:10,marginTop:20,flexWrap:"wrap"}}>
         <button className="btn ghost" onClick={()=>descargarCV(cand)}><Download size={15}/> Descargar CV</button>
@@ -805,9 +866,14 @@ const ACT={
   },
   docsFiltroListos(db, vacId, cid){
     const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
-    /* Filtros automáticos simulados: buró de crédito + historial en el corporativo */
+    /* Filtros automáticos simulados: empleos previos + PLD + examen psicométrico */
     p.estado="filtros_ok";
-    p.historial.push("Filtros automáticos aprobados (buró de crédito, empleos previos, PLD) · "+hoy());
+    p.historial.push("Filtros automáticos aprobados (empleos previos, historial de crédito, PLD, psicométrico) · "+hoy());
+  },
+  /* El candidato realiza su examen psicométrico (a nivel candidato · vigencia 6 meses) */
+  completarPsicometrico(db, cid){
+    const c=db.candidatos.find(x=>x.id===cid);
+    c.psicometrico={ fecha:hoy(), ts:Date.now() };
   },
   videoIA(db, vacId, cid){
     const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
@@ -860,11 +926,11 @@ const ACT={
     p.estado="docs_completos"; p.historial.push("Documentación de contratación completa y validada · "+hoy());
     notify(db,{tipo:"formador",id:v.formadorId},"Documentación completa",`${db.candidatos.find(c=>c.id===cid).nombre} terminó de subir su documentación para "${v.req.titulo}". Ya puedes preparar y enviar la carta oferta.`,v.id);
   },
-  enviarOferta(db, vacId, cid, monto, fecha){
+  enviarOferta(db, vacId, cid, monto, fecha, ubicacion){
     const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
-    p.estado="oferta_enviada"; p.oferta={monto,fecha};
+    p.estado="oferta_enviada"; p.oferta={monto,fecha,ubicacion:ubicacion||DIRECCION_CORP};
     p.historial.push(`Carta oferta enviada: ${money(monto)} · ingreso y firma el ${fecha} · `+hoy());
-    notify(db,{tipo:"candidato",id:cid},"Recibiste tu carta oferta",`Tu propuesta para "${v.req.titulo}": ${money(monto)} mensuales brutos. Fecha de firma e ingreso: ${fecha}. Revísala y acéptala en tu panel.`,v.id);
+    notify(db,{tipo:"candidato",id:cid},"Recibiste tu carta oferta",`Tu propuesta para "${v.req.titulo}": ${money(monto)} mensuales brutos. Fecha de firma e ingreso: ${fecha}. Te presentarás en: ${p.oferta.ubicacion}. Revísala y acéptala en tu panel.`,v.id);
   },
   aceptarOferta(db, vacId, cid){
     const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
@@ -878,10 +944,11 @@ const ACT={
   /* Modo demo: simula la siguiente acción del candidato */
   simular(db, vacId, cid){
     const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
-    if(p.estado==="invitado"){ ACT.aplicar(db,vacId,cid,true); p.docsFiltro={buro:"autorizacion_buro.pdf",historial:"historial_laboral.pdf"}; ACT.docsFiltroListos(db,vacId,cid); ACT.videoIA(db,vacId,cid); }
-    else if(p.estado==="postulado"||p.estado==="filtros_ok"){ p.docsFiltro={buro:"autorizacion_buro.pdf",historial:"historial_laboral.pdf"}; ACT.docsFiltroListos(db,vacId,cid); ACT.videoIA(db,vacId,cid); }
+    const filtrosDemo=()=>{ p.docsFiltro={constancias:["constancia_empleo_1.pdf","constancia_empleo_2.pdf"]}; p.autorizaFiltros=true; ACT.completarPsicometrico(db,cid); };
+    if(p.estado==="invitado"){ ACT.aplicar(db,vacId,cid,true); filtrosDemo(); ACT.docsFiltroListos(db,vacId,cid); ACT.videoIA(db,vacId,cid); }
+    else if(p.estado==="postulado"||p.estado==="filtros_ok"){ filtrosDemo(); ACT.docsFiltroListos(db,vacId,cid); ACT.videoIA(db,vacId,cid); }
     else if(p.estado==="slots_enviados"){ ACT.confirmarSlot(db,vacId,cid,p.slots[0]); }
-    else if(p.estado==="seleccionado"){ p.docsContrato={ine:"ine.pdf",curp:"curp.pdf",rfc:"rfc.pdf",domicilio:"comprobante_domicilio.pdf",estudios:"comprobante_estudios.pdf"}; ACT.docsContratoListos(db,vacId,cid); }
+    else if(p.estado==="seleccionado"){ p.docsContrato={ine:"ine.pdf",curp:"curp.pdf",rfc:"rfc.pdf",domicilio:"comprobante_domicilio.pdf",estudios:"comprobante_estudios.pdf"}; p.cuentaBanco="012180001234567895"; ACT.docsContratoListos(db,vacId,cid); }
     else if(p.estado==="oferta_enviada"){ ACT.aceptarOferta(db,vacId,cid); }
   },
   guardarCandidato(db, cand){
@@ -1169,6 +1236,7 @@ function OfertaTool({v, cand, p, onSend}){
   const [monto,setMonto]=useState(sugerido);
   const fechas=fechasQuincena();
   const [fecha,setFecha]=useState(fechas[0]);
+  const [ubicacion,setUbicacion]=useState(DIRECCION_CORP);
   const fuera=monto<v.req.salarioMin||monto>v.req.salarioMax;
   return (
     <div className="grid2">
@@ -1195,7 +1263,11 @@ function OfertaTool({v, cand, p, onSend}){
           <select value={fecha} onChange={e=>setFecha(e.target.value)}>{fechas.map(f=><option key={f}>{f}</option>)}</select>
           <div className="help">Solo se permiten el día 1 o el día 16 de cada mes.</div>
         </div>
-        <button className="btn gold" disabled={fuera} onClick={()=>onSend(monto,fecha)}><Send size={15}/> Enviar carta oferta a {cand.nombre.split(" ")[0]}</button>
+        <div className="field"><label>Ubicación donde el candidato debe presentarse</label>
+          <textarea rows={2} value={ubicacion} onChange={e=>setUbicacion(e.target.value)} placeholder="Dirección completa de presentación el primer día…"/>
+          <div className="help">Se incluirá en la carta oferta y en la pantalla de bienvenida (con enlace a Google Maps).</div>
+        </div>
+        <button className="btn gold" disabled={fuera||!ubicacion.trim()} onClick={()=>onSend(monto,fecha,ubicacion.trim())}><Send size={15}/> Enviar carta oferta a {cand.nombre.split(" ")[0]}</button>
       </div>
     </div>
   );
@@ -1217,8 +1289,11 @@ function Celebracion({cand, p, v}){
         <div style={{fontSize:12.5,color:"#C9C9C9",marginTop:8}}>No. de empleado</div>
         <div style={{fontSize:26,fontWeight:800,letterSpacing:"0.18em",color:"var(--gold)"}}>{p.numEmpleado}</div>
         <div style={{fontSize:12.5,color:"#C9C9C9",marginTop:8}}>Ingreso y firma: <b style={{color:"#fff"}}>{p.oferta.fecha}</b></div>
+        <div style={{fontSize:12.5,color:"#C9C9C9",marginTop:8}}>Se presenta en:</div>
+        <div style={{fontSize:13,color:"#fff",fontWeight:600,marginTop:2,maxWidth:320}}>{p.oferta.ubicacion||DIRECCION_CORP}</div>
       </div>
       <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+        <a className="btn ghost sm" href={mapsUrl(p.oferta.ubicacion)} target="_blank" rel="noreferrer" style={{background:"transparent",color:"#fff",borderColor:"#555"}}><MapPin size={13}/> Ver en Google Maps</a>
         <button className="btn gold sm"><Download size={13}/> Kit de inducción al área</button>
         <button className="btn gold sm"><Download size={13}/> Guía de bienvenida (LMS)</button>
         <button className="btn ghost sm" style={{background:"transparent",color:"#fff",borderColor:"#555"}}><Calendar size={13}/> Agenda del primer día</button>
@@ -1425,6 +1500,11 @@ function VacanteDetail({db, v, run, toast}){
                   <span className="help">{seleccionado.p.docsContrato[k]? "Recibido y validado":"Pendiente del candidato"}</span>
                 </div>
               ))}
+              <div className={"check-item"+(seleccionado.p.cuentaBanco?" done":"")}>
+                {seleccionado.p.cuentaBanco? <CheckCircle2 size={18} color="var(--ok)"/>:<Landmark size={18} color="var(--gray)"/>}
+                <div style={{flex:1,fontSize:13,fontWeight:600}}>Cuenta bancaria para nómina</div>
+                <span className="help">{seleccionado.p.cuentaBanco? "Cuenta registrada: ••••"+String(seleccionado.p.cuentaBanco).slice(-4):"Pendiente del candidato"}</span>
+              </div>
               {seleccionado.p.estado!=="seleccionado" && <div className="chip ok" style={{marginTop:12}}><CheckCircle2 size={12}/> Documentación completa — continúa a la carta oferta</div>}
             </div>
           )}
@@ -1437,7 +1517,7 @@ function VacanteDetail({db, v, run, toast}){
           {seleccionado && seleccionado.p.estado==="seleccionado" && <p style={{color:"var(--gray)",textAlign:"center",padding:30}}>Esperando a que {seleccionado.c.nombre.split(" ")[0]} complete su documentación para habilitar la carta oferta.</p>}
           {seleccionado && seleccionado.p.estado==="docs_completos" && (<>
             <h3 style={{marginBottom:14}}>Preparar carta oferta · {seleccionado.c.nombre}</h3>
-            <OfertaTool v={v} cand={seleccionado.c} p={seleccionado.p} onSend={(m,f)=>{run(d=>ACT.enviarOferta(d,v.id,seleccionado.cid,m,f)); toast("Carta oferta enviada al candidato");}}/>
+            <OfertaTool v={v} cand={seleccionado.c} p={seleccionado.p} onSend={(m,f,u)=>{run(d=>ACT.enviarOferta(d,v.id,seleccionado.cid,m,f,u)); toast("Carta oferta enviada al candidato");}}/>
           </>)}
           {seleccionado && seleccionado.p.estado==="oferta_enviada" && (
             <div style={{textAlign:"center",padding:26}}>
@@ -1456,7 +1536,7 @@ function VacanteDetail({db, v, run, toast}){
         <div className="card" style={{textAlign:"center",padding:40,color:"var(--gray)"}}><PartyPopper size={26} style={{marginBottom:8}}/><p>Aquí verás la pantalla de celebración cuando tu candidato acepte la oferta y firme su contrato.</p></div>
       )}
 
-      {perfil && <PerfilModal cand={perfil.c} match={perfil.match} onClose={()=>setPerfil(null)}
+      {perfil && <PerfilModal cand={perfil.c} match={perfil.match} req={v.req} onClose={()=>setPerfil(null)}
         extra={!v.pipeline[perfil.c.id] && abierta && <button className="btn gold" onClick={()=>{setInvitando(perfil.c);setPerfil(null);}}><Send size={15}/> Invitar a postularse</button>}/>}
       {invitando && <InvitarModal cand={invitando} v={v} onClose={()=>setInvitando(null)}
         onSend={(msg)=>{run(d=>ACT.invitar(d,v.id,invitando.id,msg)); setInvitando(null); toast("Invitación enviada a "+invitando.nombre.split(" ")[0]);}}/>}
@@ -1568,6 +1648,8 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
   const [confirmOferta,setConfirmOferta]=useState(null);
   const [feedbackDe,setFeedbackDe]=useState(null);
   const [filtro,setFiltro]=useState("todos");
+  const [qrDe,setQrDe]=useState(null);       // vacId mostrando el QR de apertura de cuenta (Batch 5)
+  const [cuentaDe,setCuentaDe]=useState(null); // vacId mostrando el modal de captura de número de cuenta
   const procesos=db.vacantes.filter(v=>v.pipeline[cand.id]);
   const esCerrado=(est)=> ["contratado","descartado","filtrado"].includes(est);
   const cont={ todos:procesos.length,
@@ -1602,9 +1684,15 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
       {visibles.map(v=>{
         const p=v.pipeline[cand.id];
         const formador=db.formadores.find(f=>f.id===v.formadorId);
-        const filtroDocsOk=p.docsFiltro.buro&&p.docsFiltro.historial;
+        const constancias=p.docsFiltro.constancias||[];
+        const filtroDocsOk = constancias.length>=1 && psicoVigente(cand.psicometrico) && p.autorizaFiltros;
         const contratoKeys=[["ine","Identificación oficial (INE)"],["curp","CURP"],["rfc","Constancia de situación fiscal (RFC)"],["domicilio","Comprobante de domicilio"],["estudios","Comprobante de estudios"]];
-        const contratoOk=contratoKeys.every(([k])=>p.docsContrato[k]);
+        const contratoOk=contratoKeys.every(([k])=>p.docsContrato[k]) && !!p.cuentaBanco;
+        /* Handlers de constancias múltiples (Batch 4) */
+        const pipeMut=(fn)=>run(d=>{ fn(d.vacantes.find(x=>x.id===v.id).pipeline[cand.id]); });
+        const addConstancia=(n)=>pipeMut(pp=>{ pp.docsFiltro.constancias=[...(pp.docsFiltro.constancias||[]), n]; });
+        const setConstancia=(i,n)=>pipeMut(pp=>{ pp.docsFiltro.constancias=(pp.docsFiltro.constancias||[]).map((x,j)=>j===i?n:x); });
+        const delConstancia=(i)=>pipeMut(pp=>{ pp.docsFiltro.constancias=(pp.docsFiltro.constancias||[]).filter((_,j)=>j!==i); });
         return (
           <div className={"card"+(p.estado==="contratado"?" ok":"")} key={v.id} style={{marginBottom:16}}>
             <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
@@ -1624,18 +1712,60 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
             </>)}
 
             {["postulado","filtros_ok"].includes(p.estado) && (<>
-              <label>Documentos para filtros iniciales (buró de crédito y verificación de empleos previos)</label>
+              <label>Documentos para filtros iniciales <span style={{fontWeight:400,color:"var(--gray)"}}>(paso 2 de 2)</span></label>
               <div className="help" style={{marginTop:-2,marginBottom:10}}>Puedes convertir y comprimir tus archivos utilizando herramientas gratuitas en línea.</div>
-              <UploadPDF label="Autorización de consulta a buró de crédito" value={p.docsFiltro.buro} onDone={n=>run(d=>{d.vacantes.find(x=>x.id===v.id).pipeline[cand.id].docsFiltro.buro=n;})}/>
-              <UploadPDF label="Historial / constancia de empleos previos" value={p.docsFiltro.historial} onDone={n=>run(d=>{d.vacantes.find(x=>x.id===v.id).pipeline[cand.id].docsFiltro.historial=n;})}/>
-              {filtroDocsOk && p.estado==="postulado" && (
-                <button className="btn dark" style={{marginTop:12}} onClick={()=>{run(d=>ACT.docsFiltroListos(d,v.id,cand.id)); toast("Filtros automáticos aprobados");}}>
+
+              {/* Constancias de empleos previos — varios archivos */}
+              <div style={{fontSize:12.5,fontWeight:600,color:"var(--ink2)",margin:"4px 0 6px"}}>Constancias de empleos previos</div>
+              {constancias.map((n,i)=>(
+                <UploadPDF key={i} label={`Constancia de empleo ${i+1}`} value={n}
+                  onDone={nm=>setConstancia(i,nm)} onDelete={()=>delConstancia(i)}/>
+              ))}
+              {p.estado==="postulado" && <UploadPDF label={constancias.length? "Agregar otra constancia de empleo" : "Constancia de empleo previo"} value={null} onDone={n=>addConstancia(n)}/>}
+
+              {/* Examen psicométrico — a nivel candidato, vigencia 6 meses */}
+              <div style={{fontSize:12.5,fontWeight:600,color:"var(--ink2)",margin:"14px 0 6px"}}>Examen psicométrico</div>
+              {psicoVigente(cand.psicometrico) ? (
+                <div className="check-item done">
+                  <ClipboardCheck size={20} color="var(--ok)"/>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:600,fontSize:13}}>Examen psicométrico completado</div>
+                    <div className="help">Resultado válido para otras vacantes durante 6 meses · vigente hasta {psicoVigenteHasta(cand.psicometrico)}.</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="check-item">
+                  <ClipboardCheck size={20} color="var(--gray)"/>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:600,fontSize:13}}>Examen psicométrico</div>
+                    <div className="help">Al completarlo, tu resultado será válido para otras aplicaciones de vacantes durante 6 meses.</div>
+                  </div>
+                  {p.estado==="postulado" && <button className="btn ai sm" onClick={()=>{run(d=>ACT.completarPsicometrico(d,cand.id)); toast("Examen psicométrico completado");}}><ClipboardCheck size={13}/> Realizar examen</button>}
+                </div>
+              )}
+
+              {/* Nota: datos y documentos del perfil */}
+              <div className="help" style={{marginTop:12,marginBottom:2}}>
+                <AlertCircle size={11} style={{verticalAlign:-1}}/> Los datos y documentos de tu perfil (INE, RFC y constancias educativas cargadas en <b>Editar perfil</b>) se utilizarán automáticamente al aplicar a esta vacante.
+              </div>
+
+              {p.estado==="postulado" && (<>
+                {/* Autorización obligatoria */}
+                <label className="check-item" style={{marginTop:12,cursor:"pointer",fontWeight:400,alignItems:"flex-start"}}>
+                  <input type="checkbox" style={{width:"auto",marginTop:2}} checked={!!p.autorizaFiltros}
+                    onChange={e=>{ const val=e.target.checked; pipeMut(pp=>{ pp.autorizaFiltros=val; }); }}/>
+                  <span style={{flex:1,fontSize:13,lineHeight:1.5}}>Autorizo a Reclutalia a procesar mis documentos y a revisar mi historial de crédito y de empleos previos como parte de los filtros iniciales.</span>
+                </label>
+                <button className="btn dark" style={{marginTop:12}} disabled={!filtroDocsOk}
+                  onClick={()=>{run(d=>ACT.docsFiltroListos(d,v.id,cand.id)); toast("Filtros automáticos aprobados");}}>
                   <ShieldCheck size={15}/> Enviar a validación automática
                 </button>
-              )}
+                {!filtroDocsOk && <div className="help" style={{marginTop:6}}>Para continuar: sube al menos una constancia de empleo, completa el examen psicométrico y marca la autorización.</div>}
+              </>)}
+
               {p.estado==="filtros_ok" && (
                 <div style={{marginTop:14}}>
-                  <div className="chip ok" style={{marginBottom:10}}><CheckCircle2 size={12}/> Filtros aprobados (buró, empleos previos, PLD)</div>
+                  <div className="chip ok" style={{marginBottom:10}}><CheckCircle2 size={12}/> Filtros aprobados (empleos previos, historial de crédito, PLD, psicométrico)</div>
                   <div className="trow">
                     <Video size={20} color="var(--ai)"/>
                     <div style={{flex:1,fontSize:13}}><b>Siguiente paso: video-entrevista con IA.</b> Responde 5 preguntas en videollamada para generar tu ranking ante el formador.</div>
@@ -1673,11 +1803,33 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
               {contratoKeys.map(([k,l])=>(
                 <UploadPDF key={k} label={l} value={p.docsContrato[k]} onDone={n=>run(d=>{d.vacantes.find(x=>x.id===v.id).pipeline[cand.id].docsContrato[k]=n;})}/>
               ))}
+
+              {/* Cuenta bancaria para nómina (Batch 5) */}
+              <div className={"check-item"+(p.cuentaBanco?" done":"")} style={{marginTop:9,alignItems:"flex-start"}}>
+                {p.cuentaBanco? <CheckCircle2 size={20} color="var(--ok)"/> : <Landmark size={20} color="var(--gray)"/>}
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:600,fontSize:13}}>Cuenta bancaria para nómina</div>
+                  <div className="help">{p.cuentaBanco
+                    ? `Cuenta registrada: ••••${String(p.cuentaBanco).slice(-4)}`
+                    : "Abre tu cuenta de nómina (enlace o QR) y registra el número de cuenta / CLABE para recibir tu sueldo."}</div>
+                  {p.estado==="seleccionado" && (
+                    <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+                      <button className="btn ghost sm" onClick={abrirAperturaCuenta}><ExternalLink size={13}/> Abrir apertura de cuenta</button>
+                      <button className="btn ghost sm" onClick={()=>setQrDe(v.id)}><QrCode size={13}/> Ver QR</button>
+                      <button className="btn gold sm" onClick={()=>setCuentaDe(v.id)}>
+                        {p.cuentaBanco? <><Edit3 size={13}/> Editar número de cuenta</> : <><Landmark size={13}/> Ingresar número de cuenta</>}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {contratoOk && p.estado==="seleccionado" && (
                 <button className="btn gold" style={{marginTop:12}} onClick={()=>{run(d=>ACT.docsContratoListos(d,v.id,cand.id)); toast("Documentación enviada · el formador fue notificado");}}>
                   <CheckCircle2 size={15}/> Enviar documentación completa
                 </button>
               )}
+              {!contratoOk && p.estado==="seleccionado" && <div className="help" style={{marginTop:8}}>Completa todos los documentos y registra tu cuenta bancaria para poder enviar tu documentación.</div>}
               {p.estado==="docs_completos" && <div className="chip ok" style={{marginTop:10}}><CheckCircle2 size={12}/> Documentación validada · espera tu carta oferta</div>}
             </>)}
 
@@ -1688,6 +1840,11 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
                   <div><label>Puesto</label><b style={{fontSize:13.5}}>{v.req.titulo}</b></div>
                   <div><label>Sueldo mensual bruto</label><b style={{fontSize:16,color:"var(--gold-dark)"}}>{money(p.oferta.monto)}</b></div>
                   <div><label>Firma e ingreso</label><b style={{fontSize:13.5}}>{p.oferta.fecha}</b></div>
+                </div>
+                <div style={{marginBottom:12}}>
+                  <label>Ubicación donde debes presentarte</label>
+                  <div style={{fontSize:13.5}}>{p.oferta.ubicacion||DIRECCION_CORP}</div>
+                  <a className="btn ghost sm" style={{marginTop:6}} href={mapsUrl(p.oferta.ubicacion)} target="_blank" rel="noreferrer"><MapPin size={13}/> Ver en Google Maps</a>
                 </div>
                 <p className="help" style={{marginBottom:12}}>Incluye prestaciones de ley y beneficios del grupo (kit informativo adjunto · simulado).</p>
                 <div style={{display:"flex",gap:8}}>
@@ -1705,8 +1862,11 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
                 <div style={{display:"inline-block",background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,184,28,0.4)",borderRadius:12,padding:"12px 26px",marginBottom:16}}>
                   <div style={{fontSize:12,color:"#C9C9C9"}}>Tu número de empleado</div>
                   <div style={{fontSize:24,fontWeight:800,letterSpacing:"0.18em",color:"var(--gold)"}}>{p.numEmpleado}</div>
+                  <div style={{fontSize:12,color:"#C9C9C9",marginTop:10}}>Preséntate en</div>
+                  <div style={{fontSize:13,color:"#fff",fontWeight:600,marginTop:2,maxWidth:300}}>{p.oferta.ubicacion||DIRECCION_CORP}</div>
                 </div>
                 <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
+                  <a className="btn gold sm" href={mapsUrl(p.oferta.ubicacion)} target="_blank" rel="noreferrer"><MapPin size={13}/> Ver en Google Maps</a>
                   <button className="btn gold sm"><Download size={13}/> Kit de inducción</button>
                   <button className="btn gold sm"><Download size={13}/> Guía de tu primer día</button>
                 </div>
@@ -1747,7 +1907,43 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
           </div>
         </Modal>
       )}
+      {qrDe && (
+        <Modal onClose={()=>setQrDe(null)}>
+          <h3 style={{marginBottom:6}}>Apertura de cuenta por QR</h3>
+          <p className="help" style={{marginBottom:16}}>Escanea este código con la app del banco para iniciar la apertura de tu cuenta de nómina (simulado).</p>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:16}}><QRDemo/></div>
+          <button className="btn ghost" onClick={()=>setQrDe(null)}>Cerrar</button>
+        </Modal>
+      )}
+      {cuentaDe && (
+        <CuentaBancoModal
+          actual={db.vacantes.find(v=>v.id===cuentaDe)?.pipeline[cand.id]?.cuentaBanco||""}
+          onClose={()=>setCuentaDe(null)}
+          onSave={(num)=>{ run(d=>{ d.vacantes.find(v=>v.id===cuentaDe).pipeline[cand.id].cuentaBanco=num; }); setCuentaDe(null); toast("Número de cuenta registrado"); }}/>
+      )}
     </div>
+  );
+}
+
+/* Captura del número de cuenta / CLABE para nómina (Batch 5) */
+function CuentaBancoModal({actual, onSave, onClose}){
+  const [num,setNum]=useState(actual||"");
+  const limpio=num.replace(/\D/g,"");
+  const valido=limpio.length>=10 && limpio.length<=18;
+  return (
+    <Modal onClose={onClose}>
+      <h3 style={{marginBottom:6}}>Número de cuenta para nómina</h3>
+      <p className="help" style={{marginBottom:14}}>Captura el número de cuenta o CLABE interbancaria (10 a 18 dígitos) donde recibirás tu sueldo. Podrás modificarlo después si lo necesitas.</p>
+      <div className="field">
+        <label>Número de cuenta / CLABE</label>
+        <input value={num} onChange={e=>setNum(e.target.value)} placeholder="Ej. 012180001234567895" inputMode="numeric"/>
+        {num && !valido && <div style={{fontSize:12,color:"var(--bad)",marginTop:4}}><AlertCircle size={12} style={{verticalAlign:-2}}/> Debe tener entre 10 y 18 dígitos.</div>}
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:8}}>
+        <button className="btn gold" disabled={!valido} onClick={()=>onSave(limpio)}><CheckCircle2 size={15}/> Guardar cuenta</button>
+        <button className="btn ghost" onClick={onClose}>Cancelar</button>
+      </div>
+    </Modal>
   );
 }
 
@@ -1787,6 +1983,9 @@ function PostulacionForm({v, onAplicar}){
 function DetalleVacanteModal({v, cand, p, onAplicar, onClose}){
   const r=v.req;
   const Row=({l,c})=><div style={{marginBottom:10}}><label>{l}</label><div style={{fontSize:13.5}}>{c}</div></div>;
+  /* Resalta en verde lo que el candidato ya tiene y coincide con el requisito de la vacante */
+  const has=(arr,e)=> (arr||[]).includes(e);
+  const MC=({e,hit,base})=><span className={"chip "+(hit?"ok":base||"")}>{hit && <CheckCircle2 size={11}/>}{e}</span>;
   return (
     <Modal onClose={onClose} wide>
       <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16,flexWrap:"wrap"}}>
@@ -1800,13 +1999,14 @@ function DetalleVacanteModal({v, cand, p, onAplicar, onClose}){
           </div>
         </div>
       </div>
+      <div className="chip ok" style={{marginBottom:12}}><CheckCircle2 size={12}/> En verde: lo que coincide con tu perfil</div>
       <div className="grid2">
         <div>
           <Row l="Descripción" c={r.descripcion}/>
-          <Row l="Especialidades requeridas" c={<div className="tagpick">{r.espRequeridas.map(e=><span key={e} className="chip gold">{e}</span>)}</div>}/>
-          {r.espOpcionales.length>0 && <Row l="Especialidades opcionales" c={<div className="tagpick">{r.espOpcionales.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>}
-          <Row l="Habilidades técnicas" c={<div className="tagpick">{r.hardSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>
-          <Row l="Habilidades blandas" c={<div className="tagpick">{r.softSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>
+          <Row l="Especialidades requeridas" c={<div className="tagpick">{r.espRequeridas.map(e=><MC key={e} e={e} hit={has(cand.esp,e)} base="gold"/>)}</div>}/>
+          {r.espOpcionales.length>0 && <Row l="Especialidades opcionales" c={<div className="tagpick">{r.espOpcionales.map(e=><MC key={e} e={e} hit={has(cand.esp,e)}/>)}</div>}/>}
+          <Row l="Habilidades técnicas" c={<div className="tagpick">{r.hardSkills.map(e=><MC key={e} e={e} hit={has(cand.hard,e)}/>)}</div>}/>
+          <Row l="Habilidades blandas" c={<div className="tagpick">{r.softSkills.map(e=><MC key={e} e={e} hit={has(cand.soft,e)}/>)}</div>}/>
           {r.aptitudes.length>0 && <Row l="Aptitudes a evaluar" c={<div className="tagpick">{r.aptitudes.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>}
         </div>
         <div>
