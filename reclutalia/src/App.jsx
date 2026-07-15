@@ -117,6 +117,12 @@ const CSS = `
 .tagpick{display:flex;flex-wrap:wrap;gap:6px;}
 .tag{border:1px solid var(--line);background:#fff;border-radius:99px;padding:5px 12px;font-size:12px;font-weight:500;color:var(--ink2);}
 .tag.on{background:var(--ink);color:var(--gold);border-color:var(--ink);font-weight:700;}
+img.avatar{object-fit:cover;}
+.taginput{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.tagx{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:500;color:var(--ink2);}
+.tagx button{border:none;background:none;display:none;color:var(--gray);cursor:pointer;padding:0;line-height:1;}
+.tagx:hover button{display:inline-flex;align-items:center;}
+.fotoprev{width:76px;height:76px;border-radius:99px;object-fit:cover;border:1px solid var(--line);background:var(--bg);display:flex;align-items:center;justify-content:center;color:var(--gray);flex-shrink:0;}
 .aibox{background:var(--ai-soft);border:1px solid #C7CBF5;border-radius:12px;padding:14px;}
 .aibox .hd{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--ai);font-size:13px;margin-bottom:8px;}
 .celebrate{background:linear-gradient(135deg,#1A1A1A 0%,#2A2415 100%);border-radius:18px;color:#fff;padding:44px 32px;text-align:center;position:relative;overflow:hidden;}
@@ -167,7 +173,10 @@ const PIPE_IDX = { invitado:0, postulado:1, filtros_ok:2, video_ia:3, evaluado:4
 const Cd = (id,nombre,tipo,area,puesto,nivel,exp,edu,ciudad,modalidad,salario,esp,hard,soft,resumen)=>(
   {id,nombre,tipo,area,puesto,nivel,exp,edu,ciudad,modalidad,salario,esp,hard,soft,resumen,
    email:nombre.toLowerCase().replace(/[^a-z ]/g,"").split(" ").slice(0,2).join(".")+"@mail.com",
-   tel:"55"+String(30000000+id*137137).slice(0,8)});
+   tel:"55"+String(30000000+id*137137).slice(0,8),
+   // Campos de perfil editable (Batch 2). Aditivos: no los lee matchScore.
+   experiencia:[], educacion:[], intereses:[], foto:null,
+   docsPerfil:{ ine:null, curp:null, rfc:null, domicilio:null, estudios:null, certificaciones:[], cv:null }});
 
 const SEED_CANDIDATOS = [
   Cd(1,"Valeria Ortiz Camacho","externo","Ventas","Ejecutiva de ventas retail","Semi-Senior",5,"Licenciatura titulado","CDMX","Presencial",16000,["Ventas B2C","Servicio al Cliente"],["CRM","Negociación comercial","Prospección en frío","Excel avanzado"],["Comunicación efectiva","Orientación a resultados","Empatía"],"5 años en piso de venta y telemarketing; top performer 2024 en cadena retail."),
@@ -203,6 +212,29 @@ const SEED_CANDIDATOS = [
   Cd(31,"Julieta Márquez Ferrer","externo","Producto","UX Designer","Semi-Senior",5,"Licenciatura titulado","Guadalajara","Remoto",30000,["UX/UI"],["Figma","Scrum"],["Creatividad","Empatía","Atención al detalle"],"Research y diseño de flujos transaccionales; sistema de diseño multi-marca."),
   Cd(32,"Pablo Serna Cantú","interno","Ventas","Promotor financiero","Junior",1,"Bachillerato","Monterrey","Presencial",10500,["Ventas B2C","Cobranza"],["Prospección en frío"],["Proactividad","Adaptabilidad","Orientación a resultados"],"Promotor interno de crédito; primer año con 110% de cuota."),
 ];
+
+/* Perfil de ejemplo para que el editor no luzca vacío en la demo (ids 1 y 5). */
+Object.assign(SEED_CANDIDATOS.find(c=>c.id===1),{
+  experiencia:[
+    { puesto:"Ejecutiva de ventas retail", empresa:"Cadena Retail del Grupo", inicio:"2021-03", fin:"" },
+    { puesto:"Asesora telefónica", empresa:"Contact Center Norte", inicio:"2019-01", fin:"2021-02" },
+  ],
+  educacion:[
+    { institucion:"Universidad del Valle de México", titulo:"Lic. en Administración", inicio:"2014-08", fin:"2018-12" },
+  ],
+  intereses:["Emplearme","Crecer mi puesto"],
+});
+Object.assign(SEED_CANDIDATOS.find(c=>c.id===5),{
+  experiencia:[
+    { puesto:"Analista de datos Sr", empresa:"Banca de Consumo", inicio:"2020-06", fin:"" },
+    { puesto:"Analista de BI", empresa:"Fintech MX", inicio:"2017-09", fin:"2020-05" },
+  ],
+  educacion:[
+    { institucion:"Tecnológico de Monterrey", titulo:"Mtría. en Ciencia de Datos", inicio:"2018-01", fin:"2019-12" },
+    { institucion:"UNAM", titulo:"Lic. en Actuaría", inicio:"2011-08", fin:"2016-06" },
+  ],
+  intereses:["Crecer mi puesto","Cambiar de área"],
+});
 
 const FORMADORES = [
   { id:"F1", nombre:"Laura Mendoza Prieto", puesto:"Gerente de Ventas Digitales", area:"Ventas" },
@@ -343,7 +375,8 @@ function MatchRing({v, size=52}){
     </div>
   );
 }
-function Avatar({nombre}){
+function Avatar({nombre, foto}){
+  if(foto) return <img className="avatar" src={foto} alt={nombre}/>;
   const ini=nombre.split(" ").slice(0,2).map(p=>p[0]).join("");
   return <div className="avatar">{ini}</div>;
 }
@@ -439,7 +472,7 @@ function PerfilModal({cand, match, onClose, extra}){
   return (
     <Modal onClose={onClose} wide>
       <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:16}}>
-        <Avatar nombre={cand.nombre}/>
+        <Avatar nombre={cand.nombre} foto={cand.foto}/>
         <div style={{flex:1}}>
           <h3 style={{fontSize:18}}>{cand.nombre}</h3>
           <div style={{color:"var(--gray)",fontSize:13}}>{cand.puesto} · {cand.area}</div>
@@ -467,8 +500,130 @@ function PerfilModal({cand, match, onClose, extra}){
   );
 }
 
+/* Editor del perfil del propio candidato — modal con pestañas "Mi perfil" / "Mis documentos" */
+function PerfilEditor({cand, onSave, onClose}){
+  const [c,setC]=useState(()=>({
+    ...cand,
+    esp:[...(cand.esp||[])], hard:[...(cand.hard||[])], soft:[...(cand.soft||[])],
+    experiencia:(cand.experiencia||[]).map(x=>({...x})),
+    educacion:(cand.educacion||[]).map(x=>({...x})),
+    intereses:[...(cand.intereses||[])],
+    docsPerfil:{ ine:null,curp:null,rfc:null,domicilio:null,estudios:null,cv:null,
+      ...(cand.docsPerfil||{}),
+      certificaciones:[...((cand.docsPerfil&&cand.docsPerfil.certificaciones)||[])] },
+  }));
+  const [tab,setTab]=useState(0);
+  const set=(k,v)=>setC(x=>({...x,[k]:v}));
+  const setDoc=(k,v)=>setC(x=>({...x,docsPerfil:{...x.docsPerfil,[k]:v}}));
+  const addExp=()=>set("experiencia",[...c.experiencia,{puesto:"",empresa:"",inicio:"",fin:""}]);
+  const setExp=(i,k,v)=>set("experiencia",c.experiencia.map((e,j)=>j===i?{...e,[k]:v}:e));
+  const delExp=(i)=>set("experiencia",c.experiencia.filter((_,j)=>j!==i));
+  const addEdu=()=>set("educacion",[...c.educacion,{institucion:"",titulo:"",inicio:"",fin:""}]);
+  const setEdu=(i,k,v)=>set("educacion",c.educacion.map((e,j)=>j===i?{...e,[k]:v}:e));
+  const delEdu=(i)=>set("educacion",c.educacion.filter((_,j)=>j!==i));
+  const INTERESES=["Emplearme","Crecer mi puesto","Cambiar de área"];
+  const toggleInt=(o)=>set("intereses",c.intereses.includes(o)?c.intereses.filter(x=>x!==o):[...c.intereses,o]);
+  const setCert=(i,n)=>setDoc("certificaciones",c.docsPerfil.certificaciones.map((x,j)=>j===i?n:x));
+  const addCert=(n)=>{ if(n) setDoc("certificaciones",[...c.docsPerfil.certificaciones,n]); };
+  const delCert=(i)=>setDoc("certificaciones",c.docsPerfil.certificaciones.filter((_,j)=>j!==i));
+
+  return (
+    <Modal onClose={onClose} wide>
+      <h3 style={{marginBottom:14}}>Editar perfil</h3>
+      <div className="tabs">
+        <button className={"tab"+(tab===0?" on":"")} onClick={()=>setTab(0)}>Mi perfil</button>
+        <button className={"tab"+(tab===1?" on":"")} onClick={()=>setTab(1)}>Mis documentos</button>
+      </div>
+
+      {tab===0 && (<>
+        <div className="field"><UploadFoto value={c.foto} nombre={c.nombre} onDone={v=>set("foto",v)}/></div>
+        <div className="field"><label>Nombre completo</label><input value={c.nombre} onChange={e=>set("nombre",e.target.value)}/>
+          <div className="help">Debe ser tu nombre tal como aparece en tu identificación oficial.</div></div>
+        <div className="field"><label>Título</label><input value={c.puesto} onChange={e=>set("puesto",e.target.value)} placeholder="Ejecutivo de ventas | Marketing | Estrategia E-commerce"/></div>
+        <div className="field"><label>Descripción</label><textarea rows={3} value={c.resumen} onChange={e=>set("resumen",e.target.value)} placeholder="Un párrafo describiéndote profesionalmente."/></div>
+        <div className="grid2">
+          <div className="field"><label>Correo</label><input value={c.email} onChange={e=>set("email",e.target.value)}/></div>
+          <div className="field"><label>Contacto</label><input value={c.tel} onChange={e=>set("tel",e.target.value)}/></div>
+        </div>
+
+        <div className="field">
+          <label>Experiencia</label>
+          {c.experiencia.map((e,i)=>(
+            <div className="trow" key={i} style={{flexWrap:"wrap"}}>
+              <input placeholder="Puesto" value={e.puesto} onChange={ev=>setExp(i,"puesto",ev.target.value)} style={{flex:"1 1 170px"}}/>
+              <input placeholder="Empresa" value={e.empresa} onChange={ev=>setExp(i,"empresa",ev.target.value)} style={{flex:"1 1 150px"}}/>
+              <input type="month" value={e.inicio} onChange={ev=>setExp(i,"inicio",ev.target.value)} style={{flex:"0 1 140px"}} title="Inicio"/>
+              <input type="month" value={e.fin} onChange={ev=>setExp(i,"fin",ev.target.value)} style={{flex:"0 1 140px"}} title="Fin (vacío = actual)"/>
+              <button className="btn ghost sm" onClick={()=>delExp(i)} title="Eliminar"><X size={13}/></button>
+            </div>
+          ))}
+          <button className="btn ghost sm" style={{marginTop:10}} onClick={addExp}><Plus size={13}/> Agregar experiencia</button>
+        </div>
+
+        <div className="field">
+          <label>Educación</label>
+          {c.educacion.map((e,i)=>(
+            <div className="trow" key={i} style={{flexWrap:"wrap"}}>
+              <input placeholder="Institución" value={e.institucion} onChange={ev=>setEdu(i,"institucion",ev.target.value)} style={{flex:"1 1 170px"}}/>
+              <input placeholder="Título / grado" value={e.titulo} onChange={ev=>setEdu(i,"titulo",ev.target.value)} style={{flex:"1 1 150px"}}/>
+              <input type="month" value={e.inicio} onChange={ev=>setEdu(i,"inicio",ev.target.value)} style={{flex:"0 1 140px"}} title="Inicio"/>
+              <input type="month" value={e.fin} onChange={ev=>setEdu(i,"fin",ev.target.value)} style={{flex:"0 1 140px"}} title="Fin"/>
+              <button className="btn ghost sm" onClick={()=>delEdu(i)} title="Eliminar"><X size={13}/></button>
+            </div>
+          ))}
+          <button className="btn ghost sm" style={{marginTop:10}} onClick={addEdu}><Plus size={13}/> Agregar educación</button>
+        </div>
+
+        <div className="field" style={{maxWidth:340}}>
+          <label>Nivel máximo de estudios</label>
+          <select value={c.edu} onChange={e=>set("edu",e.target.value)}>{EDUCACION.map(a=><option key={a}>{a}</option>)}</select>
+        </div>
+
+        <div className="field"><label>Habilidades</label>
+          <TagInput value={c.soft} onChange={v=>set("soft",v)} max={10} placeholder="Ej. Negociación, liderazgo…"
+            help="Máx. 10. Ejemplos: negociación, liderazgo, análisis de datos, comunicación efectiva."/></div>
+        <div className="field"><label>Herramientas</label>
+          <TagInput value={c.hard} onChange={v=>set("hard",v)} max={10} placeholder="Ej. Excel, Power BI…"
+            help="Máx. 10. Ejemplos: Excel, Office, Power BI, ChatGPT, Salesforce, SAP."/></div>
+
+        <div className="field"><label>Intereses</label>
+          <div className="tagpick">{INTERESES.map(o=><button type="button" key={o} className={"tag"+(c.intereses.includes(o)?" on":"")} onClick={()=>toggleInt(o)}>{o}</button>)}</div>
+        </div>
+      </>)}
+
+      {tab===1 && (<>
+        <p className="help" style={{marginBottom:12}}>Repositorio personal de documentos reutilizables. Se aprovecharán al aplicar a vacantes. Solo PDF · máximo 1 MB por archivo.</p>
+        <label>Identidad</label>
+        <div style={{marginTop:6}}>
+          <UploadPDF label="Identificación oficial (INE)" value={c.docsPerfil.ine} onDone={n=>setDoc("ine",n)} onDelete={()=>setDoc("ine",null)}/>
+          <UploadPDF label="CURP" value={c.docsPerfil.curp} onDone={n=>setDoc("curp",n)} onDelete={()=>setDoc("curp",null)}/>
+          <UploadPDF label="Constancia de situación fiscal (RFC)" value={c.docsPerfil.rfc} onDone={n=>setDoc("rfc",n)} onDelete={()=>setDoc("rfc",null)}/>
+        </div>
+        <label style={{marginTop:16,display:"block"}}>Domicilio</label>
+        <div style={{marginTop:6}}>
+          <UploadPDF label="Comprobante de domicilio" value={c.docsPerfil.domicilio} onDone={n=>setDoc("domicilio",n)} onDelete={()=>setDoc("domicilio",null)}/>
+        </div>
+        <label style={{marginTop:16,display:"block"}}>Formación</label>
+        <div style={{marginTop:6}}>
+          <UploadPDF label="Comprobante de estudios / título" value={c.docsPerfil.estudios} onDone={n=>setDoc("estudios",n)} onDelete={()=>setDoc("estudios",null)}/>
+          {c.docsPerfil.certificaciones.map((n,i)=>(
+            <UploadPDF key={i} label={`Certificación ${i+1}`} value={n} onDone={nm=>setCert(i,nm)} onDelete={()=>delCert(i)}/>
+          ))}
+          <UploadPDF label="Agregar diplomado o certificación" value={null} onDone={n=>addCert(n)}/>
+        </div>
+        <label style={{marginTop:16,display:"block"}}>CV</label>
+        <div style={{marginTop:6}}>
+          <UploadPDF label="Currículum actualizado" value={c.docsPerfil.cv} onDone={n=>setDoc("cv",n)} onDelete={()=>setDoc("cv",null)}/>
+        </div>
+      </>)}
+
+      <button className="btn gold" style={{marginTop:20}} onClick={()=>onSave(c)}><CheckCircle2 size={15}/> Guardar cambios</button>
+    </Modal>
+  );
+}
+
 /* ============================== SUBIDA DE ARCHIVO (PDF ≤ 1 MB) ============================== */
-function UploadPDF({label, value, onDone}){
+function UploadPDF({label, value, onDone, onDelete}){
   const ref=useRef(); const [err,setErr]=useState("");
   const pick=(e)=>{
     const f=e.target.files[0]; if(!f) return;
@@ -482,12 +637,38 @@ function UploadPDF({label, value, onDone}){
       <div style={{flex:1}}>
         <div style={{fontWeight:600,fontSize:13}}>{label}</div>
         <div className="help">{value? `Cargado: ${value}` : "PDF · máximo 1 MB"}</div>
-        <div className="help">Puedes convertir y comprimir tus archivos utilizando herramientas gratuitas en línea.</div>
         {err && <div style={{fontSize:11.5,color:"var(--bad)",marginTop:3}}><AlertCircle size={11} style={{verticalAlign:-1}}/> {err}</div>}
       </div>
       <input type="file" accept="application/pdf" ref={ref} style={{display:"none"}} onChange={pick}/>
       {!value && <button className="btn ghost sm" onClick={()=>ref.current.click()}><Upload size={13}/> Subir archivo</button>}
       {value && <button className="btn ghost sm" onClick={()=>ref.current.click()}>Reemplazar</button>}
+      {value && onDelete && <button className="btn ghost sm" onClick={()=>{setErr("");onDelete();}}>Eliminar</button>}
+    </div>
+  );
+}
+
+/* Subida de foto de perfil — imagen JPG/PNG ≤ 2 MB, guardada como data URL */
+function UploadFoto({value, nombre, onDone}){
+  const ref=useRef(); const [err,setErr]=useState("");
+  const pick=(e)=>{
+    const f=e.target.files[0]; if(!f) return;
+    if(!["image/png","image/jpeg"].includes(f.type)){ setErr("Solo se permiten imágenes JPG o PNG."); return; }
+    if(f.size>2*1024*1024){ setErr("La imagen supera el límite de 2 MB."); return; }
+    setErr("");
+    const r=new FileReader(); r.onload=()=>onDone(r.result); r.readAsDataURL(f);
+  };
+  return (
+    <div style={{display:"flex",gap:14,alignItems:"center"}}>
+      {value? <img className="fotoprev" src={value} alt={nombre||"Foto de perfil"}/> : <div className="fotoprev"><User size={26}/></div>}
+      <div>
+        <input type="file" accept="image/png,image/jpeg" ref={ref} style={{display:"none"}} onChange={pick}/>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button className="btn ghost sm" onClick={()=>ref.current.click()}><Upload size={13}/> {value?"Cambiar foto":"Subir foto"}</button>
+          {value && <button className="btn ghost sm" onClick={()=>{setErr("");onDone(null);}}>Quitar</button>}
+        </div>
+        <div className="help">JPG o PNG · máximo 2 MB</div>
+        {err && <div style={{fontSize:11.5,color:"var(--bad)",marginTop:3}}><AlertCircle size={11} style={{verticalAlign:-1}}/> {err}</div>}
+      </div>
     </div>
   );
 }
@@ -507,6 +688,38 @@ function TagPicker({options, value, onChange, addNew}){
           <button type="button" className="btn ghost sm" onClick={()=>{ if(nuevo.trim()){ onChange([...value,nuevo.trim()]); setNuevo(""); }}}><Plus size={13}/> Agregar</button>
         </div>
       )}
+    </div>
+  );
+}
+
+/* Etiquetas de texto libre con ✕ al hover (máx N) — usado en el perfil del candidato */
+function TagInput({value, onChange, max=10, placeholder, help}){
+  const [nuevo,setNuevo]=useState("");
+  const lleno=value.length>=max;
+  const add=()=>{
+    const t=nuevo.trim(); if(!t){ return; }
+    if(value.includes(t)||lleno){ setNuevo(""); return; }
+    onChange([...value,t]); setNuevo("");
+  };
+  return (
+    <div>
+      {value.length>0 && (
+        <div className="taginput">
+          {value.map(t=>(
+            <span key={t} className="tagx">{t}
+              <button type="button" title="Quitar" onClick={()=>onChange(value.filter(x=>x!==t))}><X size={12}/></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{display:"flex",gap:8,marginTop:value.length>0?8:0}}>
+        <input placeholder={placeholder||"Escribe y presiona Enter…"} value={nuevo} disabled={lleno}
+          onChange={e=>setNuevo(e.target.value)}
+          onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); add(); } }} style={{maxWidth:320}}/>
+        <button type="button" className="btn ghost sm" disabled={lleno||!nuevo.trim()} onClick={add}><Plus size={13}/> Agregar</button>
+      </div>
+      {help && <div className="help">{help}</div>}
+      {lleno && <div className="help">Máximo {max} elementos.</div>}
     </div>
   );
 }
@@ -1383,6 +1596,7 @@ function CandidatoHome({db, cand, run, toast}){
 
             {["postulado","filtros_ok"].includes(p.estado) && (<>
               <label>Documentos para filtros iniciales (buró de crédito y verificación de empleos previos)</label>
+              <div className="help" style={{marginTop:-2,marginBottom:10}}>Puedes convertir y comprimir tus archivos utilizando herramientas gratuitas en línea.</div>
               <UploadPDF label="Autorización de consulta a buró de crédito" value={p.docsFiltro.buro} onDone={n=>run(d=>{d.vacantes.find(x=>x.id===v.id).pipeline[cand.id].docsFiltro.buro=n;})}/>
               <UploadPDF label="Historial / constancia de empleos previos" value={p.docsFiltro.historial} onDone={n=>run(d=>{d.vacantes.find(x=>x.id===v.id).pipeline[cand.id].docsFiltro.historial=n;})}/>
               {filtroDocsOk && p.estado==="postulado" && (
@@ -1640,6 +1854,7 @@ export default function App(){
   const [candId,setCandId]=useState(1);
   const [vista,setVista]=useState("inicio");
   const [vacAbierta,setVacAbierta]=useState(null);
+  const [editPerfil,setEditPerfil]=useState(false);
   const [toastMsg,setToastMsg]=useState("");
   const toast=(m)=>{ setToastMsg(m); setTimeout(()=>setToastMsg(""),2600); };
   const formador=db.formadores.find(f=>f.id===formadorId);
@@ -1707,13 +1922,16 @@ export default function App(){
           <button className="iconbtn" onClick={()=>setVista("notif")} title="Notificaciones">
             <Bell size={17}/>{noLeidas>0&&<span className="dot">{noLeidas}</span>}
           </button>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <Avatar nombre={rol==="formador"?formador.nombre:rol==="candidato"?candidato.nombre:ADMIN.nombre}/>
+          <div onClick={rol==="candidato"?()=>setEditPerfil(true):undefined}
+               title={rol==="candidato"?"Editar perfil":undefined}
+               style={{display:"flex",alignItems:"center",gap:10,cursor:rol==="candidato"?"pointer":"default"}}>
+            <Avatar nombre={rol==="formador"?formador.nombre:rol==="candidato"?candidato.nombre:ADMIN.nombre} foto={rol==="candidato"?candidato.foto:undefined}/>
             <div>
               <div style={{fontSize:13,fontWeight:700}}>{rol==="formador"?formador.nombre:rol==="candidato"?candidato.nombre:ADMIN.nombre}</div>
               <div style={{fontSize:11,color:"var(--gray)"}}>{rol==="formador"?formador.puesto:rol==="candidato"?"Candidato":ADMIN.puesto}</div>
             </div>
           </div>
+          {rol==="candidato" && <button className="btn ghost sm" onClick={()=>setEditPerfil(true)}><Edit3 size={13}/> Editar perfil</button>}
         </header>
         <div className="content">
           {rol==="formador" && vista==="inicio" && <FormadorHome db={db} formador={formador} run={run} onOpen={abrirVac}/>}
@@ -1724,6 +1942,11 @@ export default function App(){
           {vista==="notif" && rol!=="admin" && <NotifList db={db} para={para} run={run} onGo={rol==="formador"?abrirVac:null}/>}
         </div>
       </div>
+      {rol==="candidato" && editPerfil && (
+        <PerfilEditor cand={candidato}
+          onClose={()=>setEditPerfil(false)}
+          onSave={(c)=>{ run(d=>ACT.guardarCandidato(d,c)); setEditPerfil(false); toast("Perfil actualizado"); }}/>
+      )}
       <BotSoporte/>
       {toastMsg && <div className="toast"><CheckCircle2 size={15} color="var(--gold)"/>{toastMsg}</div>}
     </div>

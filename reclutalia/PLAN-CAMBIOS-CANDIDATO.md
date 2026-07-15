@@ -4,7 +4,7 @@ Plan por batches para ejecutar en Claude Code. Cada batch es autocontenido y se 
 en su propio turno. **Leer primero las Reglas generales.** Marcar cada batch como ✅ al
 terminarlo (editar este archivo).
 
-**Estado:** Batch 1 ✅ · Batch 2 ⬜ · Batch 3 ⬜ · Batch 4 ⬜ · Batch 5 ⬜ · Batch 6 ⬜
+**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ⬜ · Batch 4 ⬜ · Batch 5 ⬜ · Batch 6 ⬜
 
 ---
 
@@ -83,9 +83,17 @@ Cuando una vacante tiene estado `cerrada` (cubierta):
 
 ---
 
-## BATCH 2 — Perfil editable del candidato + Mis documentos ⬜
+## BATCH 2 — Perfil editable del candidato + Mis documentos ✅
 
 (Punto 4.) Funcionalidad nueva grande. **Recomendado ejecutar en modo plan primero.**
+
+> **Implementado.** Editor abierto como **modal `wide`** desde el topbar del candidato
+> (avatar/nombre clickeable + botón "Editar perfil"). Componentes nuevos: `PerfilEditor`
+> (pestañas *Mi perfil* / *Mis documentos*), `TagInput` (chips con ✕ al hover, máx 10),
+> `UploadFoto` (foto de perfil JPG/PNG ≤ 2 MB como data URL). `Avatar` acepta prop `foto`;
+> `UploadPDF` acepta prop `onDelete`. Campos nuevos del candidato: `experiencia`, `educacion`,
+> `intereses`, `foto`, `docsPerfil`. Habilidades↔`soft`, Herramientas↔`hard` (no rompe `matchScore`).
+> Semilla poblada en ids 1 y 5.
 
 **2.1 Acceso.** En el `topbar`, cuando el rol es candidato, el bloque de avatar + nombre debe
 ser clickeable y abrir el editor de perfil (modal `wide` o vista dedicada, decidir según lo que

@@ -71,10 +71,10 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
 | `CATÁLOGOS` | Áreas, niveles, skills, aptitudes, `JOURNEY` (10 pasos), `PIPE` (pipeline candidato) |
 | `DATOS SEMILLA` | 32 candidatos, 3 vacantes, 2 formadores, 1 admin |
 | `UTILIDADES` | `matchScore`/`buildPool` (motor de match simulado), `descargarCV`, helpers de fecha/dinero |
-| `COMPONENTES BASE` | `Modal`, `Chip`, `MatchRing`, `Avatar`, `JourneyBar`, `MiniPipe`, `EstadoChip` |
+| `COMPONENTES BASE` | `Modal`, `Chip`, `MatchRing`, `Avatar` (acepta prop `foto`), `JourneyBar`, `MiniPipe`, `EstadoChip` |
 | `BOT DE APOYO` | Bot flotante FAQ (transversal) |
-| `PERFIL DE CANDIDATO` | `PerfilModal` |
-| `SUBIDA DE ARCHIVO` | `UploadPDF` (valida solo PDF, máx 1 MB) |
+| `PERFIL DE CANDIDATO` | `PerfilModal` (solo lectura, lo ve el formador) · `PerfilEditor` (editor del propio candidato: modal `wide` con pestañas *Mi perfil* / *Mis documentos*) |
+| `SUBIDA DE ARCHIVO` | `UploadPDF` (solo PDF, máx 1 MB; prop opcional `onDelete`), `UploadFoto` (imagen JPG/PNG ≤ 2 MB → data URL), `TagPicker`, `TagInput` (chips de texto libre con ✕ al hover, máx N) |
 | `FORMULARIO ESTANDARIZADO DE VACANTE` | `VacanteForm` (wizard de 4 pasos) |
 | `PANEL DEL FORMADOR` | `VacanteDetail`, `FormadorHome`, `NotifList`, modales invitar/agendar/entrevista/oferta, `Celebracion` |
 | `PANEL DEL CANDIDATO` | `CandidatoHome`, `VideoIAModal`, `PostulacionForm` |
@@ -88,7 +88,14 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
   `fn(nuevaDb)` y re-renderiza. Nunca mutar `db` directamente.
 - **Lógica de negocio:** el objeto **`ACT`** concentra todas las acciones (crear/editar/aprobar
   vacante, invitar, postular, video-IA, agendar, entrevistar, seleccionar, oferta, contratar).
-  Cada acción también emite notificaciones vía `notify(...)`.
+  Cada acción también emite notificaciones vía `notify(...)`. `ACT.guardarCandidato` **reemplaza el
+  objeto candidato completo** (no hace merge): quien lo llame debe pasar TODOS los campos.
+- **Modelo del candidato:** campos que lee el match (`esp`, `hard`, `soft`, `nivel`, `exp`,
+  `ciudad`, `modalidad`) + descriptivos (`salario`, `edu`, `tipo`, `area`, `puesto`, `resumen`,
+  `email`, `tel`) + **campos de perfil editable (Batch 2):** `experiencia[]`, `educacion[]`,
+  `intereses[]`, `foto` (data URL) y `docsPerfil` (INE/CURP/RFC/domicilio/estudios/`certificaciones[]`/cv).
+  El candidato los edita en `PerfilEditor` (se abre desde el topbar); en la UI *Habilidades*↔`soft`
+  y *Herramientas*↔`hard`. Los arrays `esp/hard/soft` **nunca** deben quedar `undefined` (rompen `matchScore`).
 - **Motor de match (`matchScore`):** determinístico (misma entrada → mismo score). Pesos aprox:
   especialidades req ~34, hard skills ~24, nivel ~12, soft ~8, experiencia ~8, opcionales ~6,
   ubicación/radio ~7, modalidad ~3; jitter determinístico; tope 98; **umbral de descarte ~28**.
