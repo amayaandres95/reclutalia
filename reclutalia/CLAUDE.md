@@ -76,7 +76,7 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
 | `PERFIL DE CANDIDATO` | `PerfilModal` (solo lectura, lo ve el formador; prop opcional `req` → resalta en verde esp/hard/soft del candidato que coinciden con la vacante) · `PerfilEditor` (editor del propio candidato: modal `wide` con pestañas *Mi perfil* / *Mis documentos*) |
 | `SUBIDA DE ARCHIVO` | `UploadPDF` (solo PDF, máx 1 MB; prop opcional `onDelete`), `UploadFoto` (imagen JPG/PNG ≤ 2 MB → data URL), `TagPicker`, `TagInput` (chips de texto libre con ✕ al hover, máx N) |
 | `FORMULARIO ESTANDARIZADO DE VACANTE` | `VacanteForm` (wizard de 4 pasos) |
-| `PANEL DEL FORMADOR` | `VacanteDetail`, `FormadorHome`, `NotifList`, modales invitar/agendar/entrevista/oferta, `Celebracion` |
+| `PANEL DEL FORMADOR` | `VacanteDetail`, `FormadorHome`, `NotifList`, modales invitar/agendar/entrevista/oferta, `Celebracion` · **Batch 1 (pool):** `BusquedaIAOverlay` (animación IA 5 s al aprobar), `CategorizarModal`, `CompartirModal`, `SolicitarMasModal`; helper de módulo `bandCol(v)` (color por banda de ranking) |
 | `PANEL DEL CANDIDATO` | `CandidatoHome`, `VideoIAModal`, `KillerPreguntas` (killer questions compartidas), `PostulacionForm`, `CuentaBancoModal` (captura de número de cuenta/CLABE, Batch 5) · `MedicoAgendar` (Batch 6: captura
 ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana para el examen médico) · **Buscar Vacantes (Batch 3):** `BuscarVacantes` (tarjetas con filtros, orden y favoritos), `DetalleVacanteModal` (resalta en verde lo que coincide con el perfil del candidato), `AplicarModal` |
 | `PANEL DE ADMIN` | `AdminPanel`, `CandidatoForm` |
@@ -164,6 +164,15 @@ ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana pa
   La documentación NO se considera completa (`medicoOk` en `contratoOk`) hasta la validación. `ACT.simular`
   fast-forwardea agendado+validado. Cierre amable / status del candidato: `EstadoChip` acepta prop `candView`
   que muestra "Cerrada" en lugar de "Descartado" en vistas del candidato.
+- **Pool de talento del formador (Batch 1 · plan FORMADOR-ADMIN):** en la tab "Pool de talento" de
+  `VacanteDetail`. Acciones por tarjeta: favorito (`ACT.toggleFavCand(db,formadorId,cid)` → `f.favoritosCands[]`,
+  global), categorizar (`ACT.crearCategoria`/`ACT.toggleCategoria` → `f.categorias=[{nombre,cids[]}]`, global),
+  compartir (solo toast, simulado) y **archivar por vacante** (`ACT.archivarCand(db,vacId,cid)` → `v.archivados[]`;
+  toggle "Ver archivados"). Filtros (`fVals`: skills de la vacante, exp mín, estudios mín sobre `EDUCACION`,
+  tipo interno/externo/ambos). **"Solicitar más candidatos"** (`ACT.solicitarMasCandidatos(db,vacId,multiposting)`
+  → `v.historial`+notifica; checkbox Multiposting; CTA grande si el pool queda vacío). **Bandas de ranking**
+  (`bandCol` + divisores): ≥90 ideales (verde `--ok`), 70–89 adecuados (verde claro `#3E9B5F`), <70 adicionales
+  (café `#8B5E34`/gris). Defaults: `f.favoritosCands/categorias=[]`, `v.archivados=[]`.
 - **Resaltado de coincidencias:** el candidato ve en verde (chip `ok` con ✓) sus habilidades/herramientas/
   especialidades que coinciden con el descriptivo en `DetalleVacanteModal`; el formador ve en verde las
   del candidato que coinciden con la vacante en `PerfilModal` (prop `req`).

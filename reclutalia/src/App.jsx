@@ -15,7 +15,8 @@ import {
   Send, Building2, GraduationCap, ShieldCheck, PartyPopper, Bot, X,
   Upload, AlertCircle, Edit3, Star, MessageSquare, User, LayoutGrid,
   ClipboardList, Zap, Link2, CalendarCheck, FileSignature, Home, Filter, Heart,
-  QrCode, Landmark, ExternalLink, ClipboardCheck
+  QrCode, Landmark, ExternalLink, ClipboardCheck,
+  Archive, ArchiveRestore, FolderPlus, Share2, Loader2
 } from "lucide-react";
 
 /* ============================== ESTILOS ============================== */
@@ -144,6 +145,22 @@ img.avatar{object-fit:cover;}
 .heart{border:1px solid var(--line);background:#fff;border-radius:99px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;color:var(--gray);flex-shrink:0;}
 .heart:hover{border-color:var(--bad);color:var(--bad);}
 .heart.on{color:var(--bad);border-color:#F0C4C1;background:var(--bad-soft);}
+/* Acciones de icono pequeñas en tarjetas de pool (Batch 1) */
+.iconact{border:1px solid var(--line);background:#fff;border-radius:8px;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;color:var(--gray);flex-shrink:0;}
+.iconact:hover{border-color:var(--ink2);color:var(--ink2);}
+.iconact.on{color:var(--gold-dark);border-color:#F2D089;background:var(--gold-soft);}
+.iconact.fav.on{color:var(--bad);border-color:#F0C4C1;background:var(--bad-soft);}
+/* Divisores por banda de ranking (Batch 1 · F14) */
+.band-div{display:flex;align-items:center;gap:10px;margin:20px 0 12px;}
+.band-div .ln{flex:1;height:2px;border-radius:2px;opacity:0.55;}
+.band-div b{font-size:13px;font-weight:800;letter-spacing:0.01em;white-space:nowrap;}
+.band-div .cnt{font-size:11px;color:var(--gray);font-weight:600;}
+/* Panel de filtros del pool (Batch 1 · F1.5) */
+.filtpanel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;}
+/* Overlay de búsqueda con IA al aprobar (Batch 1 · F3) */
+.ai-spin{animation:spin 0.9s linear infinite;color:var(--ai);}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ai-search-msg{font-size:13.5px;color:var(--ai);font-weight:600;margin-top:14px;min-height:20px;transition:opacity .3s;}
 `;
 
 /* ============================== CATÁLOGOS ============================== */
@@ -246,8 +263,9 @@ Object.assign(SEED_CANDIDATOS.find(c=>c.id===5),{
 });
 
 const FORMADORES = [
-  { id:"F1", nombre:"Laura Mendoza Prieto", puesto:"Gerente de Ventas Digitales", area:"Ventas" },
-  { id:"F2", nombre:"Arturo Castillo Vega", puesto:"Director de Datos", area:"Datos y Analítica" },
+  // favoritosCands / categorias: pool de talento propio del formador (Batch 1 · globales por formador)
+  { id:"F1", nombre:"Laura Mendoza Prieto", puesto:"Gerente de Ventas Digitales", area:"Ventas", favoritosCands:[], categorias:[] },
+  { id:"F2", nombre:"Arturo Castillo Vega", puesto:"Director de Datos", area:"Datos y Analítica", favoritosCands:[], categorias:[] },
 ];
 const ADMIN = { id:"A1", nombre:"Carlos Ruiz Delgado", puesto:"Administrador · Talento GS" };
 
@@ -259,7 +277,7 @@ const mkReq = (o)=>({
   examenMedico:false, ...o });
 
 const SEED_VACANTES = [
-  { id:"V-1042", estado:"asignada", formadorId:"F1", creada:"01 jul 2026", pipeline:{}, historial:[], cambios:null,
+  { id:"V-1042", estado:"asignada", formadorId:"F1", creada:"01 jul 2026", pipeline:{}, historial:[], cambios:null, archivados:[],
     req: mkReq({ titulo:"Ejecutivo de Ventas Digitales", area:"Ventas",
       descripcion:"Responsable de la venta consultiva de productos financieros por canales digitales: prospección, seguimiento en CRM y cierre remoto. Trabajará de la mano del equipo de marketing para convertir leads calificados.",
       nivelPuesto:"Semi-Senior", anosExp:3, espRequeridas:["Ventas B2C"], espOpcionales:["CRM y Fidelización","Servicio al Cliente"],
@@ -268,7 +286,7 @@ const SEED_VACANTES = [
       killer:[{q:"¿Cuentas con disponibilidad para laborar sábados medio día?"},{q:"¿Tienes al menos 2 años de experiencia en venta de productos financieros o intangibles?"}],
       ubicacionTrabajo:"CDMX", modalidad:"Híbrido", ubicacionCandidato:"CDMX", radioKm:30,
       salarioMin:14000, salarioMax:19000, horario:"9:00 – 18:00", numVacantes:2 }) },
-  { id:"V-1038", estado:"abierta", formadorId:"F1", creada:"24 jun 2026", pipeline:{}, historial:["Aprobada por el formador el 26 jun 2026"], cambios:null,
+  { id:"V-1038", estado:"abierta", formadorId:"F1", creada:"24 jun 2026", pipeline:{}, historial:["Aprobada por el formador el 26 jun 2026"], cambios:null, archivados:[],
     req: mkReq({ titulo:"Coordinador de Atención a Clientes", area:"Atención a Clientes",
       descripcion:"Liderar una célula de 20 agentes de atención omnicanal, asegurando niveles de servicio, calidad y coaching continuo al equipo.",
       nivelPuesto:"Semi-Senior", anosExp:4, espRequeridas:["Servicio al Cliente"], espOpcionales:["Cobranza"],
@@ -277,7 +295,7 @@ const SEED_VACANTES = [
       killer:[{q:"¿Has liderado equipos de 10 o más personas?"}],
       ubicacionTrabajo:"CDMX", modalidad:"Presencial", ubicacionCandidato:"CDMX", radioKm:40,
       salarioMin:17000, salarioMax:22000, horario:"8:00 – 17:00", numVacantes:1, examenMedico:true }) },
-  { id:"V-1035", estado:"abierta", formadorId:"F2", creada:"18 jun 2026", pipeline:{}, historial:["Aprobada por el formador el 19 jun 2026"], cambios:null,
+  { id:"V-1035", estado:"abierta", formadorId:"F2", creada:"18 jun 2026", pipeline:{}, historial:["Aprobada por el formador el 19 jun 2026"], cambios:null, archivados:[],
     req: mkReq({ titulo:"Analista de Datos Sr", area:"Datos y Analítica",
       descripcion:"Construcción de modelos analíticos y tableros para la dirección de crédito. Trabajo cercano con negocio para traducir preguntas en datos.",
       nivelPuesto:"Senior", anosExp:5, espRequeridas:["Ciencia de Datos","Business Intelligence"], espOpcionales:["Infraestructura TI"],
@@ -425,9 +443,12 @@ function Modal({onClose, children, wide}){
 function Chip({tone="", icon:Icon, children}){
   return <span className={"chip "+tone}>{Icon && <Icon size={12}/>}{children}</span>;
 }
+/* Color del ring por banda de ranking (Batch 1 · F14):
+   ≥90 verde fuerte · 70–89 verde claro · 50–69 café · <50 gris */
+const bandCol = (v)=> v>=90?"var(--ok)": v>=70?"#3E9B5F": v>=50?"#8B5E34":"var(--gray)";
 function MatchRing({v, size=52}){
   const r=(size/2)-4, c=2*Math.PI*r;
-  const col = v>=75?"var(--ok)": v>=50?"var(--gold-dark)":"var(--gray)";
+  const col = bandCol(v);
   return (
     <div className="ring" style={{width:size,height:size}} title={`Match ${v}%`}>
       <svg width={size} height={size}>
@@ -829,7 +850,7 @@ const pAct=(v,cid)=> v.pipeline[cid];
 const ACT={
   /* Admin crea/edita vacante y la asigna a un formador */
   crearVacante(db, req, formadorId){
-    const v={ id:uid("V-2"), estado:"asignada", formadorId, creada:hoy(), req, pipeline:{}, historial:["Creada por el administrador el "+hoy()], cambios:null };
+    const v={ id:uid("V-2"), estado:"asignada", formadorId, creada:hoy(), req, pipeline:{}, historial:["Creada por el administrador el "+hoy()], cambios:null, archivados:[] };
     db.vacantes.unshift(v);
     notify(db,{tipo:"formador",id:formadorId},"Se te liberó una nueva vacante",`La vacante ${v.id} · "${req.titulo}" fue asignada a ti. Revisa el descriptivo, solicita cambios o apruébala para iniciar la búsqueda.`,v.id);
     return v.id;
@@ -991,6 +1012,38 @@ const ACT={
       ACT.docsContratoListos(db,vacId,cid);
     }
     else if(p.estado==="oferta_enviada"){ ACT.aceptarOferta(db,vacId,cid); }
+  },
+  /* ===== Pool de talento del formador (Batch 1) ===== */
+  /* Archivar / restaurar candidato — por vacante (se oculta del pool de esa vacante) */
+  archivarCand(db, vacId, cid){
+    const v=db.vacantes.find(x=>x.id===vacId);
+    if(!v.archivados) v.archivados=[];
+    v.archivados = v.archivados.includes(cid) ? v.archivados.filter(x=>x!==cid) : [...v.archivados, cid];
+  },
+  /* Favorito de candidato — global por formador */
+  toggleFavCand(db, formadorId, cid){
+    const f=db.formadores.find(x=>x.id===formadorId);
+    if(!f.favoritosCands) f.favoritosCands=[];
+    f.favoritosCands = f.favoritosCands.includes(cid) ? f.favoritosCands.filter(x=>x!==cid) : [...f.favoritosCands, cid];
+  },
+  /* Categorías de candidatos — globales por formador */
+  crearCategoria(db, formadorId, nombre){
+    const f=db.formadores.find(x=>x.id===formadorId);
+    if(!f.categorias) f.categorias=[];
+    const n=nombre.trim();
+    if(n && !f.categorias.some(c=>c.nombre===n)) f.categorias.push({nombre:n, cids:[]});
+  },
+  toggleCategoria(db, formadorId, nombre, cid){
+    const f=db.formadores.find(x=>x.id===formadorId);
+    if(!f.categorias) f.categorias=[];
+    const cat=f.categorias.find(c=>c.nombre===nombre); if(!cat) return;
+    cat.cids = cat.cids.includes(cid) ? cat.cids.filter(x=>x!==cid) : [...cat.cids, cid];
+  },
+  /* Solicitar más candidatos a reclutamiento (simulado · 5–10 días hábiles) */
+  solicitarMasCandidatos(db, vacId, multiposting){
+    const v=db.vacantes.find(x=>x.id===vacId);
+    v.historial.push("Se solicitó a reclutamiento la búsqueda de más candidatos (5–10 días hábiles)"+(multiposting?" · Multiposting habilitado":"")+" · "+hoy());
+    notify(db,{tipo:"formador",id:v.formadorId},"Solicitud de más candidatos registrada",`Un grupo de reclutadores iniciará la búsqueda de talento para "${v.req.titulo}". Recibirás candidatos viables adicionales en un plazo de 5 a 10 días hábiles.`+(multiposting?" Además, la vacante se publicó automáticamente en plataformas de terceros (Multiposting · simulado).":""),v.id);
   },
   guardarCandidato(db, cand){
     const i=db.candidatos.findIndex(c=>c.id===cand.id);
@@ -1353,6 +1406,97 @@ function Celebracion({cand, p, v}){
   );
 }
 
+/* Overlay de búsqueda con IA al aprobar el descriptivo (Batch 1 · F3 · 5 s simulados) */
+function BusquedaIAOverlay({onDone}){
+  const msgs=["Analizando el marketplace de talento…","Comparando habilidades y experiencia…","Generando ranking de compatibilidad…"];
+  const [i,setI]=useState(0);
+  useEffect(()=>{
+    const iv=setInterval(()=>setI(x=>(x+1)%msgs.length),1600);
+    const to=setTimeout(()=>{ clearInterval(iv); onDone(); },5000);
+    return ()=>{ clearInterval(iv); clearTimeout(to); };
+  },[]);
+  return (
+    <div className="modal-bg">
+      <div className="modal" style={{maxWidth:420,textAlign:"center",padding:"38px 30px"}}>
+        <Loader2 size={46} className="ai-spin"/>
+        <h3 style={{marginTop:16,color:"var(--ai)"}}>La IA está buscando tu talento</h3>
+        <p className="help" style={{marginTop:6}}>Analizando a los candidatos del pool y ordenándolos por compatibilidad con tu vacante.</p>
+        <div className="ai-search-msg">{msgs[i]}</div>
+        <div className="mini-pipe" style={{marginTop:14}}>{msgs.map((_,k)=><i key={k} className={k<=i?"f":""} style={k<=i?{background:"var(--ai)"}:{}}/>)}</div>
+      </div>
+    </div>
+  );
+}
+
+/* Modal: categorizar candidato (Batch 1 · F1.2) */
+function CategorizarModal({cand, cats, onToggle, onCrear, onClose}){
+  const [nueva,setNueva]=useState("");
+  return (
+    <Modal onClose={onClose}>
+      <h3 style={{marginBottom:4}}>Categorizar a {cand.nombre.split(" ").slice(0,2).join(" ")}</h3>
+      <p className="help" style={{marginBottom:14}}>Agrega o quita al candidato de tus categorías personales. Son visibles solo para ti.</p>
+      {cats.length===0 && <p className="help" style={{marginBottom:12}}>Aún no tienes categorías. Crea la primera abajo.</p>}
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+        {cats.map(c=>{
+          const on=c.cids.includes(cand.id);
+          return (
+            <button key={c.nombre} className={"check-item"+(on?" done":"")} style={{textAlign:"left"}} onClick={()=>onToggle(c.nombre)}>
+              {on? <CheckCircle2 size={18} color="var(--ok)"/> : <FolderPlus size={18} color="var(--gray)"/>}
+              <div style={{flex:1,fontSize:13,fontWeight:600}}>{c.nombre}</div>
+              <span className="help">{on?"Incluido":"Agregar"}</span>
+            </button>
+          );
+        })}
+      </div>
+      <label>Crear nueva categoría</label>
+      <div style={{display:"flex",gap:8}}>
+        <input value={nueva} onChange={e=>setNueva(e.target.value)} placeholder="p. ej. Finalistas de ventas"/>
+        <button className="btn dark" disabled={!nueva.trim()} onClick={()=>{onCrear(nueva); setNueva("");}}><Plus size={14}/> Crear</button>
+      </div>
+    </Modal>
+  );
+}
+
+/* Modal: compartir candidato con otro formador (Batch 1 · F1.4 · simulado) */
+function CompartirModal({cand, onEnviar, onClose}){
+  const [dest,setDest]=useState("");
+  return (
+    <Modal onClose={onClose}>
+      <h3 style={{marginBottom:4}}>Compartir candidato</h3>
+      <p className="help" style={{marginBottom:14}}>Comparte el perfil de <b>{cand.nombre}</b> con otro formador de equipo.</p>
+      <label>Nombre o número de empleado del formador</label>
+      <input value={dest} onChange={e=>setDest(e.target.value)} placeholder="p. ej. Arturo Castillo o 1002345"/>
+      <div style={{display:"flex",gap:8,marginTop:16}}>
+        <button className="btn gold" disabled={!dest.trim()} onClick={()=>onEnviar(dest.trim())}><Share2 size={14}/> Compartir perfil</button>
+        <button className="btn ghost" onClick={onClose}>Cancelar</button>
+      </div>
+      <div className="help" style={{marginTop:10}}>Integración simulada en este prototipo; no se envía información real.</div>
+    </Modal>
+  );
+}
+
+/* Modal: solicitar más candidatos a reclutamiento (Batch 1 · F2) */
+function SolicitarMasModal({v, onConfirmar, onClose}){
+  const [multi,setMulti]=useState(false);
+  return (
+    <Modal onClose={onClose}>
+      <h3 style={{marginBottom:4}}>Solicitar más candidatos</h3>
+      <p style={{fontSize:13.5,lineHeight:1.6,marginTop:8}}>Al continuar, un grupo de reclutadores iniciará la búsqueda de talento para <b>"{v.req.titulo}"</b> y te propondrá candidatos viables en un plazo de <b>5 a 10 días hábiles</b>.</p>
+      <label className="check-item" style={{marginTop:16,cursor:"pointer"}} onClick={()=>setMulti(m=>!m)}>
+        {multi? <CheckCircle2 size={18} color="var(--ok)"/> : <div style={{width:18,height:18,border:"2px solid var(--gray)",borderRadius:5,flexShrink:0}}/>}
+        <div style={{flex:1,fontSize:13}}>
+          <div style={{fontWeight:700}}>Habilitar Multiposting</div>
+          <div className="help">Publica automáticamente la vacante en plataformas de terceros (bolsas de empleo · simulado).</div>
+        </div>
+      </label>
+      <div style={{display:"flex",gap:8,marginTop:16}}>
+        <button className="btn gold" onClick={()=>onConfirmar(multi)}><Send size={15}/> Confirmar solicitud</button>
+        <button className="btn ghost" onClick={onClose}>Cancelar</button>
+      </div>
+    </Modal>
+  );
+}
+
 /* ============================== DETALLE DE VACANTE (Formador) ============================== */
 function VacanteDetail({db, v, run, toast}){
   const [tab,setTab]=useState(v.estado==="abierta"||v.estado==="cerrada"?1:0);
@@ -1362,7 +1506,29 @@ function VacanteDetail({db, v, run, toast}){
   const [agenda,setAgenda]=useState(false);
   const [entrevistando,setEntrevistando]=useState(null);
   const [confirmSel,setConfirmSel]=useState(null);
+  /* Pool de talento (Batch 1): búsqueda IA, filtros, archivados, categorizar, compartir, solicitar más */
+  const [buscando,setBuscando]=useState(false);
+  const [fOpen,setFOpen]=useState(false);
+  const [fVals,setFVals]=useState({skills:[],expMin:0,edu:"",tipo:"ambos"});
+  const [verArch,setVerArch]=useState(false);
+  const [catCand,setCatCand]=useState(null);
+  const [shareCand,setShareCand]=useState(null);
+  const [solicitar,setSolicitar]=useState(false);
   const cand=(cid)=>db.candidatos.find(c=>c.id===Number(cid));
+  const f=db.formadores.find(x=>x.id===v.formadorId)||{};
+  const favs=f.favoritosCands||[];
+  const cats=f.categorias||[];
+  const archivados=v.archivados||[];
+  const filtroSkills=[...new Set([...(v.req.hardSkills||[]),...(v.req.softSkills||[])])];
+  const pasaFiltro=(c)=>{
+    if(fVals.tipo!=="ambos" && c.tipo!==(fVals.tipo==="internos"?"interno":"externo")) return false;
+    if(fVals.expMin && c.exp<Number(fVals.expMin)) return false;
+    if(fVals.edu && EDUCACION.indexOf(c.edu)<EDUCACION.indexOf(fVals.edu)) return false;
+    if(fVals.skills.length && !fVals.skills.every(s=>c.hard.includes(s)||c.soft.includes(s))) return false;
+    return true;
+  };
+  const fActivo = fVals.skills.length>0 || Number(fVals.expMin)>0 || !!fVals.edu || fVals.tipo!=="ambos";
+  const enCategoria=(cid)=> cats.some(c=>c.cids.includes(cid));
   const pipe=Object.entries(v.pipeline).map(([cid,p])=>({cid:Number(cid),p,c:cand(cid)}));
   const evaluados=pipe.filter(x=>["evaluado","slots_enviados","agendado","entrevistado","seleccionado","docs_completos","oferta_enviada","contratado"].includes(x.p.estado))
     .sort((a,b)=>(b.p.matchIA||b.p.match)-(a.p.matchIA||a.p.match));
@@ -1378,6 +1544,41 @@ function VacanteDetail({db, v, run, toast}){
       onClick={()=>{run(d=>ACT.simular(d,v.id,cid)); toast("Acción del candidato simulada (modo demo)");}}>
       <Zap size={12}/> {label||"Simular respuesta del candidato"}
     </button>
+  );
+
+  /* Tarjeta de candidato del pool con acciones (Batch 1 · F1). archivado=vista de archivados */
+  const poolCard=({cid,match,c,p},archivado)=>(
+    <div className="trow" key={cid} style={archivado?{opacity:0.7}:{}}>
+      <MatchRing v={match}/>
+      <Avatar nombre={c.nombre}/>
+      <div style={{flex:1,minWidth:0}}>
+        <b style={{fontSize:14}}>{c.nombre}</b> <Chip tone={c.tipo==="interno"?"gold":""}>{c.tipo}</Chip>
+        {favs.includes(cid) && <Chip tone="bad"><Heart size={11}/> Favorito</Chip>}
+        <div style={{fontSize:12.5,color:"var(--gray)"}}>{c.puesto} · {c.nivel} · {c.exp} años · {c.ciudad}</div>
+        <div className="tagpick" style={{marginTop:5}}>{c.esp.slice(0,2).map(e=><span key={e} className="chip">{e}</span>)}{c.hard.slice(0,2).map(e=><span key={e} className="chip">{e}</span>)}</div>
+        {cats.filter(cat=>cat.cids.includes(cid)).map(cat=><span key={cat.nombre} className="chip gold" style={{marginTop:5,marginRight:5}}><FolderPlus size={11}/> {cat.nombre}</span>)}
+        {p && <div style={{marginTop:6}}><EstadoChip estado={p.estado}/></div>}
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
+        {archivado ? (
+          <button className="btn ghost sm" onClick={()=>{run(d=>ACT.archivarCand(d,v.id,cid)); toast("Candidato restaurado al pool");}}><ArchiveRestore size={13}/> Restaurar</button>
+        ):(<>
+          <div style={{display:"flex",gap:6}}>
+            <button className="btn ghost sm" onClick={()=>setPerfil({c,match})}><User size={13}/> Ver perfil</button>
+            <button className="btn ghost sm" onClick={()=>descargarCV(c)}><Download size={13}/> CV</button>
+            {!p && <button className="btn gold sm" onClick={()=>setInvitando(c)}><Send size={13}/> Invitar</button>}
+          </div>
+          <div style={{display:"flex",gap:6}}>
+            <button className={"iconact fav"+(favs.includes(cid)?" on":"")} title="Marcar como favorito"
+              onClick={()=>run(d=>ACT.toggleFavCand(d,v.formadorId,cid))}><Heart size={15}/></button>
+            <button className={"iconact"+(enCategoria(cid)?" on":"")} title="Categorizar" onClick={()=>setCatCand(c)}><FolderPlus size={15}/></button>
+            <button className="iconact" title="Compartir con otro formador" onClick={()=>setShareCand(c)}><Share2 size={15}/></button>
+            <button className="iconact" title="Archivar de esta vacante" onClick={()=>{run(d=>ACT.archivarCand(d,v.id,cid)); toast("Candidato archivado de esta vacante");}}><Archive size={15}/></button>
+          </div>
+          {p && ["invitado","postulado","filtros_ok"].includes(p.estado) && <SimBtn cid={cid}/>}
+        </>)}
+      </div>
+    </div>
   );
 
   return (
@@ -1406,39 +1607,102 @@ function VacanteDetail({db, v, run, toast}){
 
       <div className="tabs">{TABS.map(([t,en],i)=><button key={t} disabled={!en} className={"tab"+(tab===i?" on":"")} onClick={()=>setTab(i)}>{t}</button>)}</div>
 
-      {tab===0 && <div className="card"><VistaDescriptivo v={v} onAprobar={()=>{run(d=>ACT.aprobarVacante(d,v.id)); setTab(1); toast("Vacante aprobada · la IA generó tu pool de talento");}} onCambios={(t)=>{run(d=>ACT.solicitarCambios(d,v.id,t)); toast("Solicitud de cambios enviada al administrador");}}/></div>}
+      {tab===0 && <div className="card"><VistaDescriptivo v={v} onAprobar={()=>setBuscando(true)} onCambios={(t)=>{run(d=>ACT.solicitarCambios(d,v.id,t)); toast("Solicitud de cambios enviada al administrador");}}/></div>}
 
-      {tab===1 && abierta && (
+      {tab===1 && abierta && (()=>{
+        const poolAll=(v.pool||[]).map(({cid,match})=>({cid,match,c:cand(cid),p:v.pipeline[cid]}));
+        const poolArch=poolAll.filter(x=>archivados.includes(x.cid));
+        const poolVis=poolAll.filter(x=>!archivados.includes(x.cid) && pasaFiltro(x.c));
+        const BANDAS=[
+          {label:"Candidatos ideales",  desc:"90% o más de compatibilidad",  col:"var(--ok)", test:m=>m>=90},
+          {label:"Candidatos adecuados", desc:"70% – 89% de compatibilidad", col:"#3E9B5F",    test:m=>m>=70&&m<90},
+          {label:"Candidatos adicionales", desc:"menos de 70%",              col:"#8B5E34",    test:m=>m<70},
+        ];
+        const toggleSkill=(s)=> setFVals(x=>({...x,skills:x.skills.includes(s)?x.skills.filter(y=>y!==s):[...x.skills,s]}));
+        return (
         <div>
           <div className="aibox" style={{marginBottom:14}}>
             <div className="hd"><Sparkles size={15}/> Marketplace analizado por IA</div>
             <p style={{fontSize:12.5}}>Se evaluaron <b>{db.candidatos.length} perfiles</b> del pool de talento (internos y externos). Se muestran <b>{(v.pool||[]).length} compatibles</b> ordenados por match; los perfiles sin relación se descartaron automáticamente.</p>
           </div>
-          {(v.pool||[]).map(({cid,match})=>{
-            const c=cand(cid); const p=v.pipeline[cid];
-            return (
-              <div className="trow" key={cid}>
-                <MatchRing v={match}/>
-                <Avatar nombre={c.nombre}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <b style={{fontSize:14}}>{c.nombre}</b> <Chip tone={c.tipo==="interno"?"gold":""}>{c.tipo}</Chip>
-                  <div style={{fontSize:12.5,color:"var(--gray)"}}>{c.puesto} · {c.nivel} · {c.exp} años · {c.ciudad}</div>
-                  <div className="tagpick" style={{marginTop:5}}>{c.esp.slice(0,2).map(e=><span key={e} className="chip">{e}</span>)}{c.hard.slice(0,2).map(e=><span key={e} className="chip">{e}</span>)}</div>
-                  {p && <div style={{marginTop:6}}><EstadoChip estado={p.estado}/></div>}
-                </div>
-                <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
-                  <div style={{display:"flex",gap:6}}>
-                    <button className="btn ghost sm" onClick={()=>setPerfil({c,match})}><User size={13}/> Ver perfil</button>
-                    <button className="btn ghost sm" onClick={()=>descargarCV(c)}><Download size={13}/> CV</button>
-                    {!p && <button className="btn gold sm" onClick={()=>setInvitando(c)}><Send size={13}/> Invitar</button>}
-                  </div>
-                  {p && ["invitado","postulado","filtros_ok"].includes(p.estado) && <SimBtn cid={cid}/>}
-                </div>
+
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:12}}>
+            <button className={"btn sm "+(fActivo?"gold":"ghost")} onClick={()=>setFOpen(o=>!o)}><Filter size={13}/> Filtrar{fActivo?" · activos":""}</button>
+            <span className="help">{poolVis.length} de {poolAll.length-poolArch.length} candidato(s){fActivo?" tras filtros":""}</span>
+            <div style={{flex:1}}/>
+            {poolArch.length>0 && <button className="btn ghost sm" onClick={()=>setVerArch(a=>!a)}><Archive size={13}/> {verArch?"Ocultar":"Ver"} archivados ({poolArch.length})</button>}
+            <button className="btn ghost sm" onClick={()=>setSolicitar(true)}><Plus size={13}/> Solicitar más candidatos</button>
+          </div>
+
+          {fOpen && (
+            <div className="filtpanel">
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <b style={{fontSize:13.5}}><Filter size={14} style={{verticalAlign:-2}}/> Filtrar candidatos del pool</b>
+                <div style={{flex:1}}/>
+                <button className="btn ghost sm" onClick={()=>setFVals({skills:[],expMin:0,edu:"",tipo:"ambos"})}>Limpiar filtros</button>
               </div>
-            );
-          })}
+              {filtroSkills.length>0 && (
+                <div className="field">
+                  <label>Habilidades y herramientas de la vacante</label>
+                  <div className="tagpick">{filtroSkills.map(s=><button key={s} className={"tag"+(fVals.skills.includes(s)?" on":"")} onClick={()=>toggleSkill(s)}>{s}</button>)}</div>
+                </div>
+              )}
+              <div className="grid3">
+                <div className="field"><label>Años de experiencia (mínimo)</label>
+                  <select value={fVals.expMin} onChange={e=>setFVals(x=>({...x,expMin:Number(e.target.value)}))}>
+                    {[0,1,2,3,5,8,10].map(n=><option key={n} value={n}>{n===0?"Cualquiera":n+"+ años"}</option>)}
+                  </select></div>
+                <div className="field"><label>Nivel de estudios (mínimo)</label>
+                  <select value={fVals.edu} onChange={e=>setFVals(x=>({...x,edu:e.target.value}))}>
+                    <option value="">Cualquiera</option>{EDUCACION.map(ed=><option key={ed} value={ed}>{ed}</option>)}
+                  </select></div>
+                <div className="field"><label>Tipo de candidato</label>
+                  <select value={fVals.tipo} onChange={e=>setFVals(x=>({...x,tipo:e.target.value}))}>
+                    <option value="ambos">Ambos</option><option value="internos">Internos</option><option value="externos">Externos</option>
+                  </select></div>
+              </div>
+            </div>
+          )}
+
+          {poolVis.length===0 ? (
+            <div className="card" style={{textAlign:"center",padding:"36px 24px"}}>
+              {fActivo ? (<>
+                <Filter size={26} color="var(--gray)" style={{marginBottom:8}}/>
+                <p style={{color:"var(--gray)"}}>Ningún candidato coincide con los filtros seleccionados.</p>
+                <button className="btn ghost sm" style={{marginTop:12}} onClick={()=>setFVals({skills:[],expMin:0,edu:"",tipo:"ambos"})}>Limpiar filtros</button>
+              </>):(<>
+                <Users size={30} color="var(--gold-dark)" style={{marginBottom:10}}/>
+                <h3 style={{fontSize:16,marginBottom:6}}>No hay candidatos compatibles disponibles</h3>
+                <p style={{color:"var(--gray)",maxWidth:440,margin:"0 auto 16px"}}>Solicita a nuestro equipo de reclutamiento que busque talento a la medida de esta vacante.</p>
+                <button className="btn gold" onClick={()=>setSolicitar(true)}><Users size={16}/> Solicitar más candidatos</button>
+              </>)}
+            </div>
+          ):(
+            BANDAS.map(b=>{
+              const grupo=poolVis.filter(x=>b.test(x.match));
+              if(!grupo.length) return null;
+              return (
+                <div key={b.label}>
+                  <div className="band-div">
+                    <b style={{color:b.col}}>{b.label}</b>
+                    <span className="cnt">· {b.desc} · {grupo.length}</span>
+                    <div className="ln" style={{background:b.col}}/>
+                  </div>
+                  {grupo.map(x=>poolCard(x,false))}
+                </div>
+              );
+            })
+          )}
+
+          {verArch && poolArch.length>0 && (
+            <div>
+              <div className="band-div"><b style={{color:"var(--gray)"}}>Archivados</b><span className="cnt">· ocultos del pool · {poolArch.length}</span><div className="ln" style={{background:"var(--gray)"}}/></div>
+              {poolArch.map(x=>poolCard(x,true))}
+            </div>
+          )}
         </div>
-      )}
+        );
+      })()}
 
       {tab===2 && abierta && (
         <div>
@@ -1599,6 +1863,17 @@ function VacanteDetail({db, v, run, toast}){
         <div className="card" style={{textAlign:"center",padding:40,color:"var(--gray)"}}><PartyPopper size={26} style={{marginBottom:8}}/><p>Aquí verás la pantalla de celebración cuando tu candidato acepte la oferta y firme su contrato.</p></div>
       )}
 
+      {buscando && <BusquedaIAOverlay onDone={()=>{ run(d=>ACT.aprobarVacante(d,v.id)); setBuscando(false); setTab(1); toast("Vacante aprobada · la IA generó tu pool de talento"); }}/>}
+      {catCand && <CategorizarModal cand={catCand} cats={cats}
+        onToggle={(nombre)=>run(d=>ACT.toggleCategoria(d,v.formadorId,nombre,catCand.id))}
+        onCrear={(nombre)=>run(d=>ACT.crearCategoria(d,v.formadorId,nombre))}
+        onClose={()=>setCatCand(null)}/>}
+      {shareCand && <CompartirModal cand={shareCand}
+        onEnviar={(dest)=>{ setShareCand(null); toast("Perfil de "+shareCand.nombre.split(" ")[0]+" compartido con "+dest+" (simulado)"); }}
+        onClose={()=>setShareCand(null)}/>}
+      {solicitar && <SolicitarMasModal v={v}
+        onConfirmar={(multi)=>{ run(d=>ACT.solicitarMasCandidatos(d,v.id,multi)); setSolicitar(false); toast("Solicitud enviada · recibirás candidatos en 5–10 días hábiles"); }}
+        onClose={()=>setSolicitar(false)}/>}
       {perfil && <PerfilModal cand={perfil.c} match={perfil.match} req={v.req} onClose={()=>setPerfil(null)}
         extra={!v.pipeline[perfil.c.id] && abierta && <button className="btn gold" onClick={()=>{setInvitando(perfil.c);setPerfil(null);}}><Send size={15}/> Invitar a postularse</button>}/>}
       {invitando && <InvitarModal cand={invitando} v={v} onClose={()=>setInvitando(null)}
