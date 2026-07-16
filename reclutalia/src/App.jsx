@@ -2547,7 +2547,7 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
               )}
             </>)}
 
-            {p.estado==="evaluado" && <div className="chip ai"><Sparkles size={12}/> Video-entrevista completada · el formador está revisando su terna</div>}
+            {p.estado==="evaluado" && <div className="chip ai"><Sparkles size={12}/> Video-entrevista completada · el formador revisará tu candidatura · se te invitará a una entrevista si cumples con el perfil deseado.</div>}
 
             {p.estado==="slots_enviados" && (<>
               <label>El formador te invitó a entrevista ({p.modalidadEnt}). Elige uno de los 3 horarios:</label>
