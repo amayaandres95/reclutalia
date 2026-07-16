@@ -193,6 +193,18 @@ ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana pa
   de las quincenas. Textos de aceptación del candidato actualizados (título dinámico) y la bienvenida del
   contratado muestra **nombre, correo y teléfono del formador** (`correoFormador`/`telFormador`, deterministas,
   dominio `@elektra.com.mx`).
+- **Formulario de vacante del admin (Batch 5 · plan FORMADOR-ADMIN):** nuevos campos en `mkReq`
+  (defaults inofensivos): `tipoSede` (catálogo `TIPOS_SEDE`) + `sede` (catálogo `SEDES`, 5 fijas por
+  tipo), `unidadNegocio` (texto), `tipoVacante` (`TIPOS_VACANTE`: Estándar/Preventiva/Proactiva/
+  Confidencial — Confidencial muestra chip dorado al admin y formador), `puedeSerSuperior`,
+  `ubicacionNoRelevante` (única que toca `matchScore`: puntaje completo de distancia, determinista),
+  `expNoRelevante`, `edadMin/edadMax/edadNoRelevante` (la edad NO entra al match). Checkboxes con
+  clase `.chk-inline` deshabilitan su campo. Todos los multi-selects del wizard tienen `addNew`.
+  **Validación por sección (A7):** helper `faltanSec(s)` en `VacanteForm` — "Siguiente" deshabilitado
+  mostrando qué falta ("no relevante" cuenta como satisfecho); el guardado exige además todas las
+  secciones completas. `VistaDescriptivo` muestra los campos nuevos; `DetalleVacanteModal` (candidato)
+  solo sede/unidad y los "no relevante" aplicables (no ve tipo de vacante ni edad preferida). Semilla:
+  las 3 vacantes traen sede/unidad; V-1035 con `edadNoRelevante`.
 - **Resaltado de coincidencias:** el candidato ve en verde (chip `ok` con ✓) sus habilidades/herramientas/
   especialidades que coinciden con el descriptivo en `DetalleVacanteModal`; el formador ve en verde las
   del candidato que coinciden con la vacante en `PerfilModal` (prop `req`).

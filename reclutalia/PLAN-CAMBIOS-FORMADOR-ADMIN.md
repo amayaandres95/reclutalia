@@ -3,7 +3,7 @@
 Plan por batches, **modo ejecución directa optimizada en tokens**. Un batch por turno, en orden.
 Marcar ✅ al terminar cada batch (editar este archivo).
 
-**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ✅ · Batch 5 ⬜ · Batch 6 ⬜
+**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ✅ · Batch 5 ✅ · Batch 6 ⬜
 
 ---
 
@@ -195,7 +195,7 @@ completarse:
 
 ---
 
-## BATCH 5 — Formulario de vacante del admin ⬜
+## BATCH 5 — Formulario de vacante del admin ✅
 
 (Puntos A2, A3, A4, A5, A6, A7.) Todo en `VacanteForm` (+ `mkReq` + `VistaDescriptivo`).
 
