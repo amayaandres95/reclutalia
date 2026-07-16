@@ -173,6 +173,20 @@ ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana pa
   → `v.historial`+notifica; checkbox Multiposting; CTA grande si el pool queda vacío). **Bandas de ranking**
   (`bandCol` + divisores): ≥90 ideales (verde `--ok`), 70–89 adecuados (verde claro `#3E9B5F`), <70 adicionales
   (café `#8B5E34`/gris). Defaults: `f.favoritosCands/categorias=[]`, `v.archivados=[]`.
+- **Entrevistas, selección y oferta (Batch 3 · plan FORMADOR-ADMIN):** máximo **3 candidatos** a la vez
+  en "Ranking y terna" para invitar a entrevista (botón deshabilitado + chip de límite). **Exclusividad de
+  horarios**: helper `slotTomado(v,slot,cid)`; `ACT.confirmarSlot` rechaza slots tomados (notifica al candidato)
+  y en la pantalla del candidato los slots confirmados por otros aparecen deshabilitados con "No disponible"
+  (`ACT.simular` elige el primer slot libre). `ACT.registrarEntrevista` guarda **`p.entrevista.calificacion`**
+  (1–10 estrellas, obligatoria en `EntrevistaModal`, formato `8/10 ⭐` arriba a la derecha del resumen; NO
+  visible para el candidato). La tab Entrevistas usa `entrevistasHist` (incluye `descartado` con `p.entrevista`
+  → historial conservado con su chip). Popup de selección: "Estás por elegir al candidato {nombre}, con ranking
+  #{posición}…" (posición por `matchFinal`). Helper **`candidatoElegido(v)`** (seleccionado/docs_completos/
+  oferta_enviada y no cerrada) → chip **"Candidato elegido"** en vez de "Búsqueda activa" en `FormadorHome`,
+  `VacanteDetail` y listado del Admin. `OfertaTool` acepta **"Otra fecha"** (`input type="date"` libre) además
+  de las quincenas. Textos de aceptación del candidato actualizados (título dinámico) y la bienvenida del
+  contratado muestra **nombre, correo y teléfono del formador** (`correoFormador`/`telFormador`, deterministas,
+  dominio `@elektra.com.mx`).
 - **Resaltado de coincidencias:** el candidato ve en verde (chip `ok` con ✓) sus habilidades/herramientas/
   especialidades que coinciden con el descriptivo en `DetalleVacanteModal`; el formador ve en verde las
   del candidato que coinciden con la vacante en `PerfilModal` (prop `req`).

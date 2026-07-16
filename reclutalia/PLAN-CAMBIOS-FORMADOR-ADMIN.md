@@ -3,7 +3,7 @@
 Plan por batches, **modo ejecución directa optimizada en tokens**. Un batch por turno, en orden.
 Marcar ✅ al terminar cada batch (editar este archivo).
 
-**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ⬜ · Batch 4 ⬜ · Batch 5 ⬜ · Batch 6 ⬜
+**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ⬜ · Batch 5 ⬜ · Batch 6 ⬜
 
 ---
 
@@ -115,7 +115,7 @@ creíbles (si id 1 ya tiene datos de un batch anterior, completarlos/asegurarlos
 
 ---
 
-## BATCH 3 — Entrevistas, selección y oferta ⬜
+## BATCH 3 — Entrevistas, selección y oferta ✅
 
 (Puntos F4, F5, F6, F7, F8, F10, F11, F12.)
 

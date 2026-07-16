@@ -394,6 +394,11 @@ function descargarCV(c){
 
 const numEmpleado=(cid)=> String(1000000 + (cid*73573)%9000000).slice(0,7);
 
+/* Contacto simulado del formador (Batch 3 · F12): correo y teléfono deterministas */
+const sinAcentos=(s)=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const correoFormador=(f)=>{ const p=sinAcentos(f.nombre).toLowerCase().replace(/[^a-z ]/g,"").split(" ").filter(Boolean); return (p[0]||"formador")+"."+(p[1]||"equipo")+"@elektra.com.mx"; };
+const telFormador=(f)=>{ const n=Number(String(f.id).replace(/\D/g,""))||1; const d=String(41000000 + (n*137137)%9000000).slice(0,8); return "+52 55 "+d.slice(0,4)+" "+d.slice(4); };
+
 /* Dirección corporativa por defecto para la presentación de ingreso (Batch 5 · demo) */
 const DIRECCION_CORP = "Av. Insurgentes Sur 3579, Tlalpan, 14000 Ciudad de México, CDMX";
 const mapsUrl = (dir)=> "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(dir||DIRECCION_CORP);
@@ -550,6 +555,9 @@ function etapaVacante(v){
   if(mx===9) return 8;
   return 9;
 }
+
+/* ¿La vacante ya tiene candidato elegido? (Batch 3 · F10) — derivado del pipeline, sin nuevo estado */
+const candidatoElegido=(v)=> v.estado!=="cerrada" && Object.values(v.pipeline||{}).some(p=>["seleccionado","docs_completos","oferta_enviada"].includes(p.estado));
 
 /* ============================== BOT DE APOYO (transversal) ============================== */
 const BOT_FAQ=[
@@ -898,6 +906,9 @@ function notify(db, para, titulo, msg, vacId){
 }
 const pAct=(v,cid)=> v.pipeline[cid];
 
+/* ¿El horario ya fue confirmado por otro candidato de esta vacante? (Batch 3 · F4) */
+const slotTomado=(v,slot,cid)=> Object.entries(v.pipeline).some(([ocid,op])=> Number(ocid)!==Number(cid) && op.slotElegido===slot && !["descartado","filtrado"].includes(op.estado));
+
 const ACT={
   /* Admin crea/edita vacante y la asigna a un formador */
   crearVacante(db, req, formadorId){
@@ -987,18 +998,23 @@ const ACT={
   },
   confirmarSlot(db, vacId, cid, slot){
     const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
+    /* Exclusividad de horarios (Batch 3 · F4): un slot confirmado queda tomado para esta vacante */
+    if(slotTomado(v,slot,cid)){
+      notify(db,{tipo:"candidato",id:cid},"Horario no disponible",`El horario ${slot} ya fue confirmado por otro candidato para "${v.req.titulo}". Elige otro de los horarios propuestos.`,v.id);
+      return;
+    }
     p.estado="agendado"; p.slotElegido=slot;
     p.teams="https://teams.microsoft.com/l/meetup-join/reclutalia-"+vacId+"-"+cid;
     p.historial.push("Confirmó horario de entrevista: "+slot+" · "+hoy());
     notify(db,{tipo:"formador",id:v.formadorId},"El candidato aceptó tu horario",`${db.candidatos.find(c=>c.id===cid).nombre} confirmó la entrevista para "${v.req.titulo}": ${slot}. Se generó la reunión en Teams (enlace en la ficha del candidato).`,v.id);
     notify(db,{tipo:"candidato",id:cid},"Entrevista confirmada",`Tu entrevista para "${v.req.titulo}" quedó agendada: ${slot}. El enlace de Teams está disponible en tu panel.`,v.id);
   },
-  registrarEntrevista(db, vacId, cid, {resumen, feedback, externa}){
+  registrarEntrevista(db, vacId, cid, {resumen, feedback, externa, calificacion}){
     const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
     const delta=((cid*17)%11)-3;
     p.matchFinal=Math.max(25,Math.min(99,(p.matchIA||p.match)+delta));
     p.estado="entrevistado";
-    p.entrevista={ resumen, feedback, externa, fecha:hoy() };
+    p.entrevista={ resumen, feedback, externa, calificacion, fecha:hoy() };
     p.historial.push((externa?"Entrevista externa registrada":"Entrevista realizada con copiloto de IA")+` · ranking final ${p.matchFinal}% · `+hoy());
   },
   seleccionar(db, vacId, cid){
@@ -1055,7 +1071,7 @@ const ACT={
     const filtrosDemo=()=>{ p.docsFiltro={constancias:["constancia_empleo_1.pdf","constancia_empleo_2.pdf"]}; p.autorizaFiltros=true; ACT.completarPsicometrico(db,cid); };
     if(p.estado==="invitado"){ ACT.aplicar(db,vacId,cid,true); filtrosDemo(); ACT.docsFiltroListos(db,vacId,cid); ACT.videoIA(db,vacId,cid); }
     else if(p.estado==="postulado"||p.estado==="filtros_ok"){ filtrosDemo(); ACT.docsFiltroListos(db,vacId,cid); ACT.videoIA(db,vacId,cid); }
-    else if(p.estado==="slots_enviados"){ ACT.confirmarSlot(db,vacId,cid,p.slots[0]); }
+    else if(p.estado==="slots_enviados"){ const libre=p.slots.find(s=>!slotTomado(v,s,cid))||p.slots[0]; ACT.confirmarSlot(db,vacId,cid,libre); }
     else if(p.estado==="seleccionado"){
       p.docsContrato={ine:"ine.pdf",curp:"curp.pdf",rfc:"rfc.pdf",domicilio:"comprobante_domicilio.pdf",estudios:"comprobante_estudios.pdf"};
       p.cuentaBanco="012180001234567895";
@@ -1334,6 +1350,7 @@ function EntrevistaModal({cand, v, p, externa, onSave, onClose}){
   const [notas,setNotas]=useState("");
   const [resumen,setResumen]=useState(externa?"":"");
   const [feedback,setFeedback]=useState("");
+  const [calif,setCalif]=useState(0);
   const preguntasIA=[
     `Cuéntame de un logro concreto como ${cand.puesto.toLowerCase()} y cómo lo mediste.`,
     `¿Cómo aplicarías ${(v.req.hardSkills[0]||"tus herramientas")} en los retos de este puesto?`,
@@ -1356,7 +1373,7 @@ function EntrevistaModal({cand, v, p, externa, onSave, onClose}){
             <div className="help" style={{marginTop:8}}>Basadas en el descriptivo y el perfil del candidato.</div>
           </div>
           <div>
-            <label>La IA está tomando notas… agrega las tuyas</label>
+            <label>La IA resumirá la reunión, agrega tus propias notas aquí:</label>
             <textarea rows={9} value={notas} onChange={e=>setNotas(e.target.value)} placeholder="Observaciones durante la entrevista (opcional)…"/>
           </div>
         </div>
@@ -1379,7 +1396,21 @@ function EntrevistaModal({cand, v, p, externa, onSave, onClose}){
           <textarea rows={3} value={feedback} onChange={e=>setFeedback(e.target.value)} placeholder="Fortalezas, áreas de oportunidad y tu recomendación…"/>
           <div className="help">Recuerda: tu retroalimentación queda registrada en el expediente y alimenta el ranking final.</div>
         </div>
-        <button className="btn gold" disabled={!feedback.trim()||(externa&&!resumen.trim())} onClick={()=>onSave({resumen,feedback,externa})}><FileSignature size={15}/> Guardar entrevista y actualizar ranking</button>
+        {/* Calificación con estrellas (Batch 3 · F6) — no visible para el candidato */}
+        <div className="field">
+          <label>Calificación de la entrevista (1 a 10 estrellas) *</label>
+          <div style={{display:"flex",gap:2,alignItems:"center"}}>
+            {[...Array(10)].map((_,i)=>(
+              <button key={i} type="button" title={`${i+1}/10`} onClick={()=>setCalif(i+1)}
+                style={{background:"none",border:"none",cursor:"pointer",padding:2,lineHeight:0}}>
+                <Star size={20} color={i<calif?"var(--gold)":"var(--line)"} fill={i<calif?"var(--gold)":"none"}/>
+              </button>
+            ))}
+            {calif>0 && <b style={{marginLeft:8,fontSize:13,color:"var(--gold-dark)"}}>{calif}/10</b>}
+          </div>
+          <div className="help">Solo visible para ti y el expediente interno; el candidato no la ve.</div>
+        </div>
+        <button className="btn gold" disabled={!feedback.trim()||calif<1||(externa&&!resumen.trim())} onClick={()=>onSave({resumen,feedback,externa,calificacion:calif})}><FileSignature size={15}/> Guardar entrevista y actualizar ranking</button>
       </>)}
     </Modal>
   );
@@ -1390,6 +1421,10 @@ function OfertaTool({v, cand, p, onSend}){
   const [monto,setMonto]=useState(sugerido);
   const fechas=fechasQuincena();
   const [fecha,setFecha]=useState(fechas[0]);
+  const [fechaLibre,setFechaLibre]=useState(""); // "Otra fecha" (Batch 3 · F11) — yyyy-mm-dd
+  const otra=fecha==="otra";
+  const fmtLibre=(s)=>{ const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long",year:"numeric"}); };
+  const fechaFinal=otra? (fechaLibre?fmtLibre(fechaLibre):"") : fecha;
   const [ubicacion,setUbicacion]=useState(DIRECCION_CORP);
   const fuera=monto<v.req.salarioMin||monto>v.req.salarioMax;
   return (
@@ -1413,15 +1448,19 @@ function OfertaTool({v, cand, p, onSend}){
           {fuera && <div style={{fontSize:12,color:"var(--bad)",marginTop:4}}><AlertCircle size={12} style={{verticalAlign:-2}}/> Fuera del tabulador autorizado. Ajusta el monto para poder enviar.</div>}
           <button className="btn ghost sm" style={{marginTop:6}} onClick={()=>setMonto(sugerido)}><Sparkles size={12}/> Usar sugerido</button>
         </div>
-        <div className="field"><label>Fecha de firma e ingreso (mismo día · inicios de quincena)</label>
-          <select value={fecha} onChange={e=>setFecha(e.target.value)}>{fechas.map(f=><option key={f}>{f}</option>)}</select>
-          <div className="help">Solo se permiten el día 1 o el día 16 de cada mes.</div>
+        <div className="field"><label>Fecha de firma e ingreso (mismo día)</label>
+          <select value={fecha} onChange={e=>setFecha(e.target.value)}>
+            {fechas.map(f=><option key={f} value={f}>{f}</option>)}
+            <option value="otra">Otra fecha…</option>
+          </select>
+          {otra && <input type="date" style={{marginTop:8}} value={fechaLibre} onChange={e=>setFechaLibre(e.target.value)}/>}
+          <div className="help">{otra?"Elige libremente la fecha de ingreso del candidato.":"Inicios de quincena (día 1 o 16), o elige \"Otra fecha\" para una fecha libre."}</div>
         </div>
         <div className="field"><label>Ubicación donde el candidato debe presentarse</label>
           <textarea rows={2} value={ubicacion} onChange={e=>setUbicacion(e.target.value)} placeholder="Dirección completa de presentación el primer día…"/>
           <div className="help">Se incluirá en la carta oferta y en la pantalla de bienvenida (con enlace a Google Maps).</div>
         </div>
-        <button className="btn gold" disabled={fuera||!ubicacion.trim()} onClick={()=>onSend(monto,fecha,ubicacion.trim())}><Send size={15}/> Enviar carta oferta a {cand.nombre.split(" ")[0]}</button>
+        <button className="btn gold" disabled={fuera||!ubicacion.trim()||!fechaFinal} onClick={()=>onSend(monto,fechaFinal,ubicacion.trim())}><Send size={15}/> Enviar carta oferta a {cand.nombre.split(" ")[0]}</button>
       </div>
     </div>
   );
@@ -1585,6 +1624,8 @@ function VacanteDetail({db, v, run, toast}){
     .sort((a,b)=>(b.p.matchIA||b.p.match)-(a.p.matchIA||a.p.match));
   const agendados=pipe.filter(x=>x.p.estado==="agendado");
   const entrevistados=pipe.filter(x=>["entrevistado","seleccionado","docs_completos","oferta_enviada","contratado"].includes(x.p.estado));
+  /* Historial de entrevistas (Batch 3 · F7): conserva visibles a los descartados ya entrevistados */
+  const entrevistasHist=pipe.filter(x=>x.p.entrevista && (["entrevistado","seleccionado","docs_completos","oferta_enviada","contratado","descartado"].includes(x.p.estado)));
   const seleccionado=pipe.find(x=>["seleccionado","docs_completos","oferta_enviada","contratado"].includes(x.p.estado));
   const contratado=pipe.find(x=>x.p.estado==="contratado");
   const abierta=v.estado==="abierta"||v.estado==="cerrada";
@@ -1642,7 +1683,7 @@ function VacanteDetail({db, v, run, toast}){
               <Chip>{v.id}</Chip>
               {v.estado==="asignada"&&<Chip tone="gold">Pendiente de tu aprobación</Chip>}
               {v.estado==="cambios"&&<Chip>Esperando cambios del admin</Chip>}
-              {v.estado==="abierta"&&<Chip tone="ok">Búsqueda activa</Chip>}
+              {v.estado==="abierta"&&(candidatoElegido(v)?<Chip tone="ok" icon={CheckCircle2}>Candidato elegido</Chip>:<Chip tone="ok">Búsqueda activa</Chip>)}
               {v.estado==="cerrada"&&<Chip tone="ok" icon={CheckCircle2}>Cubierta</Chip>}
             </div>
             <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}>
@@ -1764,7 +1805,7 @@ function VacanteDetail({db, v, run, toast}){
           ):(<>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
               <Star size={16} color="var(--gold-dark)"/><b>Terna top y demás opciones</b>
-              <span className="help">Ranking recalculado por la IA tras filtros (buró, empleos previos, PLD) y video-entrevista.</span>
+              <span className="help">Ranking recalculado por la IA tras filtros (buró, empleos previos, PLD) y video-entrevista. Puedes invitar a entrevista a un máximo de 3 candidatos a la vez.</span>
             </div>
             {evaluados.map(({cid,p,c},i)=>(
               <div className="trow" key={cid} style={i<3?{borderColor:"var(--gold)",background:"#FFFDF6"}:{}}>
@@ -1782,7 +1823,11 @@ function VacanteDetail({db, v, run, toast}){
                     <button className="btn ghost sm" onClick={()=>setPerfil({c,match:p.matchIA||p.match})}>Ver detalles</button>
                     <button className="btn ghost sm" onClick={()=>descargarCV(c)}><Download size={13}/> CV</button>
                     {p.estado==="evaluado" && (
-                      <button className={"btn sm "+(selEnt.includes(cid)?"dark":"gold")} onClick={()=>setSelEnt(s=>s.includes(cid)?s.filter(x=>x!==cid):[...s,cid])}>
+                      <button className={"btn sm "+(selEnt.includes(cid)?"dark":"gold")}
+                        disabled={!selEnt.includes(cid)&&selEnt.length>=3}
+                        title={!selEnt.includes(cid)&&selEnt.length>=3?"Límite alcanzado: máximo 3 candidatos por ronda de entrevistas":""}
+                        style={!selEnt.includes(cid)&&selEnt.length>=3?{opacity:.45,cursor:"not-allowed"}:{}}
+                        onClick={()=>setSelEnt(s=>s.includes(cid)?s.filter(x=>x!==cid): s.length<3?[...s,cid]:s)}>
                         {selEnt.includes(cid)? <>Quitar de la lista</> : <><Calendar size={13}/> Invitar a entrevista</>}
                       </button>
                     )}
@@ -1792,7 +1837,8 @@ function VacanteDetail({db, v, run, toast}){
               </div>
             ))}
             {selEnt.length>0 && (
-              <div style={{position:"sticky",bottom:16,marginTop:14,display:"flex",justifyContent:"center"}}>
+              <div style={{position:"sticky",bottom:16,marginTop:14,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+                {selEnt.length>=3 && <span className="chip gold"><AlertCircle size={11}/> Límite alcanzado: máximo 3 candidatos por ronda de entrevistas</span>}
                 <button className="btn dark" onClick={()=>setAgenda(true)}><Calendar size={15}/> Agendar entrevista con {selEnt.length} candidato(s)</button>
               </div>
             )}
@@ -1802,7 +1848,7 @@ function VacanteDetail({db, v, run, toast}){
 
       {tab===3 && abierta && (
         <div>
-          {agendados.length===0 && entrevistados.length===0 && (
+          {agendados.length===0 && entrevistasHist.length===0 && (
             <div className="card" style={{textAlign:"center",padding:40,color:"var(--gray)"}}>
               <Calendar size={26} style={{marginBottom:8}}/><p>No hay entrevistas agendadas todavía. Invita candidatos desde la pestaña "Ranking y terna".</p>
             </div>
@@ -1821,13 +1867,14 @@ function VacanteDetail({db, v, run, toast}){
               </div>
             </div>
           ))}
-          {entrevistados.map(({cid,p,c})=>(
+          {entrevistasHist.map(({cid,p,c})=>(
             <div className="trow" key={cid}>
               <MatchRing v={p.matchFinal}/>
               <Avatar nombre={c.nombre}/>
               <div style={{flex:1}}>
                 <b>{c.nombre}</b> <EstadoChip estado={p.estado}/>
                 <div style={{fontSize:12.5,color:"var(--ink2)",marginTop:5,background:"var(--bg)",borderRadius:8,padding:"8px 10px"}}>
+                  {p.entrevista.calificacion && <span style={{float:"right",fontWeight:800,fontSize:12,color:"var(--gold-dark)",marginLeft:10}} title="Calificación de la entrevista">{p.entrevista.calificacion}/10 ⭐</span>}
                   <b style={{fontSize:11,color:"var(--ai)"}}><Sparkles size={11} style={{verticalAlign:-1}}/> RESUMEN IA:</b> {p.entrevista.resumen}
                 </div>
                 <div style={{fontSize:12.5,color:"var(--ink2)",marginTop:4}}><b style={{fontSize:11,color:"var(--gold-dark)"}}>TU FEEDBACK:</b> {p.entrevista.feedback}</div>
@@ -1940,7 +1987,8 @@ function VacanteDetail({db, v, run, toast}){
       {confirmSel && (
         <Modal onClose={()=>setConfirmSel(null)}>
           <h3 style={{marginBottom:8}}>¿Confirmas tu decisión?</h3>
-          <p style={{fontSize:13.5,lineHeight:1.6}}>Seleccionarás a <b>{confirmSel.c.nombre}</b> como candidato ideal para "{v.req.titulo}" y continuarás con la contratación. Se le enviará la felicitación con el checklist de documentos y <b>los demás candidatos entrevistados serán notificados</b> y canalizados a otras vacantes compatibles.</p>
+          {(()=>{ const rk=[...entrevistados].sort((a,b)=>(b.p.matchFinal||0)-(a.p.matchFinal||0)); const pos=rk.findIndex(x=>x.cid===confirmSel.cid)+1;
+            return <p style={{fontSize:13.5,lineHeight:1.6}}>Estás por elegir al candidato <b>{confirmSel.c.nombre}</b>, con ranking <b>#{pos}</b>, como candidato ideal para "{v.req.titulo}", y continuarás con la contratación. Se le enviará la felicitación con el checklist de documentos y <b>los demás candidatos entrevistados serán notificados</b> y canalizados a otras vacantes compatibles.</p>; })()}
           <div style={{display:"flex",gap:8,marginTop:16}}>
             <button className="btn gold" onClick={()=>{run(d=>ACT.seleccionar(d,v.id,confirmSel.cid)); setConfirmSel(null); setTab(4); toast("Candidato seleccionado · notificaciones enviadas");}}><CheckCircle2 size={15}/> Sí, continuar con la contratación</button>
             <button className="btn ghost" onClick={()=>setConfirmSel(null)}>Volver</button>
@@ -1990,7 +2038,7 @@ function FormadorHome({db, formador, run, onOpen}){
               <b style={{fontSize:15}}>{v.req.titulo}</b><Chip>{v.id}</Chip>
               {v.estado==="asignada"&&<Chip tone="gold" icon={AlertCircle}>Requiere tu revisión</Chip>}
               {v.estado==="cambios"&&<Chip icon={Clock}>Esperando al admin</Chip>}
-              {v.estado==="abierta"&&<Chip tone="ok">Búsqueda activa</Chip>}
+              {v.estado==="abierta"&&(candidatoElegido(v)?<Chip tone="ok" icon={CheckCircle2}>Candidato elegido</Chip>:<Chip tone="ok">Búsqueda activa</Chip>)}
               {v.estado==="cerrada"&&<Chip tone="ok" icon={CheckCircle2}>Cubierta</Chip>}
               <span style={{marginLeft:"auto"}} className="help">{enProceso? enProceso+" candidato(s) en proceso · ":""}Creada {v.creada}</span>
               <ChevronRight size={16} color="var(--gray)"/>
@@ -2210,8 +2258,14 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
             {p.estado==="slots_enviados" && (<>
               <label>El formador te invitó a entrevista ({p.modalidadEnt}). Elige uno de los 3 horarios:</label>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginTop:6}}>
-                {p.slots.map(s=><button key={s} className="slotbtn" onClick={()=>{run(d=>ACT.confirmarSlot(d,v.id,cand.id,s)); toast("Horario confirmado · reunión de Teams generada");}}>{s}</button>)}
+                {p.slots.map(s=>{
+                  const tomado=slotTomado(v,s,cand.id); /* Exclusividad de horarios (Batch 3 · F4) */
+                  return tomado
+                    ? <button key={s} className="slotbtn" disabled style={{opacity:.55,cursor:"not-allowed"}}>{s}<div style={{fontSize:10.5,fontWeight:700,color:"var(--bad)",marginTop:2}}>No disponible</div></button>
+                    : <button key={s} className="slotbtn" onClick={()=>{run(d=>ACT.confirmarSlot(d,v.id,cand.id,s)); toast("Horario confirmado · reunión de Teams generada");}}>{s}</button>;
+                })}
               </div>
+              {p.slots.some(s=>slotTomado(v,s,cand.id)) && <div className="help" style={{marginTop:6}}>Los horarios marcados como "No disponible" ya fueron confirmados por otro candidato de esta vacante.</div>}
             </>)}
 
             {p.estado==="agendado" && (
@@ -2308,7 +2362,7 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
                 </div>
                 <p className="help" style={{marginBottom:12}}>Incluye prestaciones de ley y beneficios del grupo (kit informativo adjunto · simulado).</p>
                 <div style={{display:"flex",gap:8}}>
-                  <button className="btn gold" onClick={()=>setConfirmOferta(v)}><CheckCircle2 size={15}/> Aceptar oferta y firmar</button>
+                  <button className="btn gold" onClick={()=>setConfirmOferta(v)}><CheckCircle2 size={15}/> Aceptar oferta y fecha de ingreso</button>
                   <button className="btn ghost"><Download size={14}/> Descargar carta (demo)</button>
                 </div>
               </div>
@@ -2324,6 +2378,9 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
                   <div style={{fontSize:24,fontWeight:800,letterSpacing:"0.18em",color:"var(--gold)"}}>{p.numEmpleado}</div>
                   <div style={{fontSize:12,color:"#C9C9C9",marginTop:10}}>Preséntate en</div>
                   <div style={{fontSize:13,color:"#fff",fontWeight:600,marginTop:2,maxWidth:300}}>{p.oferta.ubicacion||DIRECCION_CORP}</div>
+                  <div style={{fontSize:12,color:"#C9C9C9",marginTop:10}}>Tu formador de equipo</div>
+                  <div style={{fontSize:13,color:"#fff",fontWeight:600,marginTop:2}}>{formador.nombre}</div>
+                  <div style={{fontSize:12,color:"var(--gold)",marginTop:2}}>{correoFormador(formador)} · {telFormador(formador)}</div>
                 </div>
                 <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
                   <a className="btn gold sm" href={mapsUrl(p.oferta.ubicacion)} target="_blank" rel="noreferrer"><MapPin size={13}/> Ver en Google Maps</a>
@@ -2359,10 +2416,10 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
         onDone={()=>{run(d=>ACT.videoIA(d,videoV.id,cand.id)); setVideoV(null); toast("Video-entrevista enviada · tu ranking fue actualizado");}}/>}
       {confirmOferta && (
         <Modal onClose={()=>setConfirmOferta(null)}>
-          <h3 style={{marginBottom:8}}>Aceptar oferta y firmar contrato</h3>
-          <p style={{fontSize:13.5,lineHeight:1.6}}>Al confirmar, aceptas la carta oferta de "{confirmOferta.req.titulo}" y se firmará digitalmente tu contrato (simulado). El formador recibirá tu confirmación con la fecha de ingreso.</p>
+          <h3 style={{marginBottom:8}}>Aceptar oferta y fecha de contratación</h3>
+          <p style={{fontSize:13.5,lineHeight:1.6}}>Al confirmar, aceptas la carta oferta de "{confirmOferta.req.titulo}", generando tu contrato para firmar el mismo día de tu fecha de ingreso. El formador recibirá tu confirmación con la fecha de ingreso.</p>
           <div style={{display:"flex",gap:8,marginTop:16}}>
-            <button className="btn gold" onClick={()=>{run(d=>ACT.aceptarOferta(d,confirmOferta.id,cand.id)); setConfirmOferta(null); toast("¡Oferta aceptada y contrato firmado!");}}><FileSignature size={15}/> Aceptar y firmar</button>
+            <button className="btn gold" onClick={()=>{run(d=>ACT.aceptarOferta(d,confirmOferta.id,cand.id)); setConfirmOferta(null); toast("¡Oferta y fecha de ingreso aceptadas!");}}><FileSignature size={15}/> Acepto mi oferta y fecha de ingreso</button>
             <button className="btn ghost" onClick={()=>setConfirmOferta(null)}>Todavía no</button>
           </div>
         </Modal>
@@ -2716,7 +2773,7 @@ function AdminPanel({db, run, toast, vista, setVista}){
             <Chip icon={User}>Formador: {db.formadores.find(f=>f.id===v.formadorId)?.nombre||"—"}</Chip>
             {v.estado==="asignada"&&<Chip tone="gold">En revisión del formador</Chip>}
             {v.estado==="cambios"&&<Chip tone="bad" icon={AlertCircle}>Cambios solicitados</Chip>}
-            {v.estado==="abierta"&&<Chip tone="ok">Búsqueda activa</Chip>}
+            {v.estado==="abierta"&&(candidatoElegido(v)?<Chip tone="ok" icon={CheckCircle2}>Candidato elegido</Chip>:<Chip tone="ok">Búsqueda activa</Chip>)}
             {v.estado==="cerrada"&&<Chip tone="ok" icon={CheckCircle2}>Cubierta</Chip>}
             <span style={{marginLeft:"auto"}}>
               {["asignada","cambios"].includes(v.estado) && <button className="btn ghost sm" onClick={()=>setEditV(v)}><Edit3 size={12}/> Editar descriptivo</button>}
