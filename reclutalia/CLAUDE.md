@@ -76,7 +76,7 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
 | `PERFIL DE CANDIDATO` | `PerfilModal` (solo lectura, lo ve el formador; prop opcional `req` → resalta en verde esp/hard/soft coincidentes; **Batch 2:** muestra título destacado, resumen, intereses, experiencia y educación —bullets con `rangoFechas`/`fmtMes`, máx 3 + "Ver más"—; props opcionales `fav/enCat/archivado/onFav/onCat/onArchivar` → acciones favorito/categorizar/archivar cuando lo abre el formador) · `PerfilEditor` (editor del propio candidato: modal `wide` con pestañas *Mi perfil* / *Mis documentos*) |
 | `SUBIDA DE ARCHIVO` | `UploadPDF` (solo PDF, máx 1 MB; prop opcional `onDelete`), `UploadFoto` (imagen JPG/PNG ≤ 2 MB → data URL), `TagPicker`, `TagInput` (chips de texto libre con ✕ al hover, máx N) |
 | `FORMULARIO ESTANDARIZADO DE VACANTE` | `VacanteForm` (wizard de 4 pasos) |
-| `PANEL DEL FORMADOR` | `VacanteDetail`, `FormadorHome`, `NotifList`, modales invitar/agendar/entrevista/oferta, `Celebracion` · **Batch 1 (pool):** `BusquedaIAOverlay` (animación IA 5 s al aprobar), `CategorizarModal`, `CompartirModal`, `SolicitarMasModal`; helper de módulo `bandCol(v)` (color por banda de ranking) |
+| `PANEL DEL FORMADOR` | `VacanteDetail`, `FormadorHome`, `NotifList`, modales invitar/agendar/entrevista/oferta, `VideoIAResumenModal` (grabación+resumen simulado de la entrevista IA, botón "Ver entrevista IA" en Ranking y terna), `Celebracion` · **Batch 1 (pool):** `BusquedaIAOverlay` (animación IA 5 s al aprobar), `CategorizarModal`, `CompartirModal`, `SolicitarMasModal`; helper de módulo `bandCol(v)` (color por banda de ranking) |
 | `PANEL DEL CANDIDATO` | `CandidatoHome`, `VideoIAModal`, `KillerPreguntas` (killer questions compartidas), `PostulacionForm`, `CuentaBancoModal` (captura de número de cuenta/CLABE, Batch 5) · `MedicoAgendar` (Batch 6: captura
 ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana para el examen médico) · **Buscar Vacantes (Batch 3):** `BuscarVacantes` (tarjetas con filtros, orden y favoritos), `DetalleVacanteModal` (resalta en verde lo que coincide con el perfil del candidato), `AplicarModal` |
 | `PANEL DE ADMIN` | `AdminPanel`, `CandidatoForm` |
@@ -102,6 +102,10 @@ ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana pa
   **`ACT.agendarMedico(db, vacId, cid, datos)`** y **`ACT.validarMedico(db, vacId, cid)`** (Batch 6):
   examen médico condicional. El candidato agenda (`p.medico={estado,ciudad,municipio,sucursal,fecha,validado:false}`,
   notifica al formador) y el formador valida el resultado (`p.medico.validado=true`, notifica al candidato).
+  **`ACT.rechazarInvitacion(db, vacId, cid, motivo)`**: el candidato declina la invitación desde el estado
+  `invitado` → estado terminal **`rechazado`** (`PIPE_IDX -1`; `p.motivoRechazo`), notifica al formador.
+  UI: `RechazarInvitacionModal` (motivo opcional) abierto desde `PostulacionForm` (prop `onRechazar`);
+  `esCerrado`/`EstadoChip` ("Invitación rechazada") lo tratan como proceso cerrado del candidato.
 - **Modelo del candidato:** campos que lee el match (`esp`, `hard`, `soft`, `nivel`, `exp`,
   `ciudad`, `modalidad`) + descriptivos (`salario`, `edu`, `tipo`, `area`, `puesto`, `resumen`,
   `email`, `tel`) + **campos de perfil editable (Batch 2):** `experiencia[]`, `educacion[]`,
