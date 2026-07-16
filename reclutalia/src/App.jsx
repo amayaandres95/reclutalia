@@ -261,6 +261,17 @@ Object.assign(SEED_CANDIDATOS.find(c=>c.id===5),{
   ],
   intereses:["Crecer mi puesto","Cambiar de área"],
 });
+Object.assign(SEED_CANDIDATOS.find(c=>c.id===2),{
+  experiencia:[
+    { puesto:"Asesor comercial", empresa:"Sucursal Centro · Grupo", inicio:"2024-02", fin:"" },
+    { puesto:"Promotor de piso", empresa:"Tienda departamental", inicio:"2022-06", fin:"2024-01" },
+  ],
+  educacion:[
+    { institucion:"Universidad Tecnológica de México", titulo:"Lic. en Mercadotecnia (trunca)", inicio:"2019-08", fin:"" },
+    { institucion:"CBTIS No. 12", titulo:"Bachillerato técnico en Administración", inicio:"2016-08", fin:"2019-06" },
+  ],
+  intereses:["Crecer mi puesto","Cambiar de área"],
+});
 
 const FORMADORES = [
   // favoritosCands / categorias: pool de talento propio del formador (Batch 1 · globales por formador)
@@ -577,7 +588,12 @@ function BotSoporte(){
 }
 
 /* ============================== PERFIL DE CANDIDATO (modal) ============================== */
-function PerfilModal({cand, match, onClose, extra, req}){
+/* Formatea "2021-03" → "mar 2021"; rango de experiencia/educación con "Actual" si no hay fin (Batch 2) */
+const MESES3=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+function fmtMes(s){ if(!s) return ""; const [y,m]=String(s).split("-"); return (MESES3[Number(m)-1]||"")+" "+y; }
+function rangoFechas(a,b){ if(!a&&!b) return ""; return `${fmtMes(a)}${a?" ":""}– ${b?fmtMes(b):"Actual"}`; }
+
+function PerfilModal({cand, match, onClose, extra, req, fav, enCat, archivado, onFav, onCat, onArchivar}){
   /* Resalta en verde lo que el candidato tiene y coincide con el descriptivo de la vacante */
   const espHit=(e)=> req && (req.espRequeridas.includes(e)||req.espOpcionales.includes(e));
   const hardHit=(e)=> req && req.hardSkills.includes(e);
@@ -585,13 +601,19 @@ function PerfilModal({cand, match, onClose, extra, req}){
   const MC=({e,hit,base})=>(
     <span className={"chip "+(hit?"ok":base||"")}>{hit && <CheckCircle2 size={11}/>}{e}</span>
   );
+  const [verExp,setVerExp]=useState(false);
+  const [verEdu,setVerEdu]=useState(false);
+  const exp=cand.experiencia||[], edu=cand.educacion||[], intereses=cand.intereses||[];
+  const expShow=verExp?exp:exp.slice(0,3), eduShow=verEdu?edu:edu.slice(0,3);
+  const conAcciones = onFav||onCat||onArchivar;   /* lo abre el formador */
   return (
     <Modal onClose={onClose} wide>
-      <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:16}}>
+      <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:14}}>
         <Avatar nombre={cand.nombre} foto={cand.foto}/>
         <div style={{flex:1}}>
           <h3 style={{fontSize:18}}>{cand.nombre}</h3>
-          <div style={{color:"var(--gray)",fontSize:13}}>{cand.puesto} · {cand.area}</div>
+          <div style={{color:"var(--gold-dark)",fontSize:14,fontWeight:700,marginTop:1}}>{cand.puesto}</div>
+          <div style={{color:"var(--gray)",fontSize:12.5}}>{cand.area}</div>
           <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}>
             <Chip tone={cand.tipo==="interno"?"gold":""} icon={Building2}>{cand.tipo==="interno"?"Candidato interno":"Candidato externo"}</Chip>
             <Chip icon={MapPin}>{cand.ciudad}</Chip>
@@ -601,7 +623,18 @@ function PerfilModal({cand, match, onClose, extra, req}){
         </div>
         {match!=null && <MatchRing v={match} size={64}/>}
       </div>
-      <p style={{fontSize:13.5,lineHeight:1.55,marginBottom:14}}>{cand.resumen}</p>
+      {conAcciones && (
+        <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+          {onFav && <button className={"btn sm "+(fav?"gold":"ghost")} onClick={onFav}><Heart size={13}/> {fav?"Favorito":"Marcar favorito"}</button>}
+          {onCat && <button className={"btn sm "+(enCat?"gold":"ghost")} onClick={onCat}><FolderPlus size={13}/> Categorizar</button>}
+          {onArchivar && <button className="btn ghost sm" onClick={onArchivar}>{archivado? <><ArchiveRestore size={13}/> Restaurar</> : <><Archive size={13}/> Archivar</>}</button>}
+        </div>
+      )}
+      {cand.resumen && <p style={{fontSize:13.5,lineHeight:1.55,marginBottom:12}}>{cand.resumen}</p>}
+      {intereses.length>0 && (
+        <div style={{marginBottom:12}}><label>Interés actual</label>
+          <div className="tagpick">{intereses.map(i=><Chip key={i} tone="gold">{i}</Chip>)}</div></div>
+      )}
       {req && <div className="chip ok" style={{marginBottom:12}}><CheckCircle2 size={12}/> En verde: coincidencias con el descriptivo de la vacante</div>}
       <div className="grid2">
         <div><label>Especialidades</label><div className="tagpick">{cand.esp.map(e=><MC key={e} e={e} hit={espHit(e)} base="gold"/>)}</div></div>
@@ -609,6 +642,24 @@ function PerfilModal({cand, match, onClose, extra, req}){
         <div><label>Habilidades técnicas</label><div className="tagpick">{cand.hard.map(e=><MC key={e} e={e} hit={hardHit(e)}/>)}</div></div>
         <div><label>Habilidades blandas</label><div className="tagpick">{cand.soft.map(e=><MC key={e} e={e} hit={softHit(e)}/>)}</div></div>
       </div>
+      {exp.length>0 && (
+        <div style={{marginTop:16}}><label>Experiencia</label>
+          {expShow.map((e,i)=>(
+            <div key={i} style={{fontSize:13,marginTop:5,lineHeight:1.4}}>• <b>{e.puesto||"—"}</b>{e.empresa?` — ${e.empresa}`:""}
+              {rangoFechas(e.inicio,e.fin) && <span style={{color:"var(--gray)"}}> ({rangoFechas(e.inicio,e.fin)})</span>}</div>
+          ))}
+          {exp.length>3 && <button className="btn ghost sm" style={{marginTop:8}} onClick={()=>setVerExp(x=>!x)}>{verExp?"Ver menos":`Ver más (${exp.length-3})`}</button>}
+        </div>
+      )}
+      {edu.length>0 && (
+        <div style={{marginTop:16}}><label>Educación</label>
+          {eduShow.map((e,i)=>(
+            <div key={i} style={{fontSize:13,marginTop:5,lineHeight:1.4}}>• <b>{e.titulo||"—"}</b>{e.institucion?` — ${e.institucion}`:""}
+              {rangoFechas(e.inicio,e.fin) && <span style={{color:"var(--gray)"}}> ({rangoFechas(e.inicio,e.fin)})</span>}</div>
+          ))}
+          {edu.length>3 && <button className="btn ghost sm" style={{marginTop:8}} onClick={()=>setVerEdu(x=>!x)}>{verEdu?"Ver menos":`Ver más (${edu.length-3})`}</button>}
+        </div>
+      )}
       <div style={{display:"flex",gap:10,marginTop:20,flexWrap:"wrap"}}>
         <button className="btn ghost" onClick={()=>descargarCV(cand)}><Download size={15}/> Descargar CV</button>
         {extra}
@@ -1875,6 +1926,10 @@ function VacanteDetail({db, v, run, toast}){
         onConfirmar={(multi)=>{ run(d=>ACT.solicitarMasCandidatos(d,v.id,multi)); setSolicitar(false); toast("Solicitud enviada · recibirás candidatos en 5–10 días hábiles"); }}
         onClose={()=>setSolicitar(false)}/>}
       {perfil && <PerfilModal cand={perfil.c} match={perfil.match} req={v.req} onClose={()=>setPerfil(null)}
+        fav={favs.includes(perfil.c.id)} enCat={enCategoria(perfil.c.id)} archivado={archivados.includes(perfil.c.id)}
+        onFav={()=>run(d=>ACT.toggleFavCand(d,v.formadorId,perfil.c.id))}
+        onCat={()=>setCatCand(perfil.c)}
+        onArchivar={()=>{ const era=archivados.includes(perfil.c.id); run(d=>ACT.archivarCand(d,v.id,perfil.c.id)); toast(era?"Candidato restaurado al pool":"Candidato archivado de esta vacante"); }}
         extra={!v.pipeline[perfil.c.id] && abierta && <button className="btn gold" onClick={()=>{setInvitando(perfil.c);setPerfil(null);}}><Send size={15}/> Invitar a postularse</button>}/>}
       {invitando && <InvitarModal cand={invitando} v={v} onClose={()=>setInvitando(null)}
         onSend={(msg)=>{run(d=>ACT.invitar(d,v.id,invitando.id,msg)); setInvitando(null); toast("Invitación enviada a "+invitando.nombre.split(" ")[0]);}}/>}

@@ -3,7 +3,7 @@
 Plan por batches, **modo ejecución directa optimizada en tokens**. Un batch por turno, en orden.
 Marcar ✅ al terminar cada batch (editar este archivo).
 
-**Estado:** Batch 1 ✅ · Batch 2 ⬜ · Batch 3 ⬜ · Batch 4 ⬜ · Batch 5 ⬜ · Batch 6 ⬜
+**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ⬜ · Batch 4 ⬜ · Batch 5 ⬜ · Batch 6 ⬜
 
 ---
 
@@ -92,7 +92,7 @@ tokens; café puede ser un marrón tipo `#8B5E34`). Solo mostrar divisores con c
 
 ---
 
-## BATCH 2 — Ficha de candidato enriquecida ⬜
+## BATCH 2 — Ficha de candidato enriquecida ✅
 
 (Punto F9.) Requiere Batch 1 (reusa archivar/categorizar/favorito).
 
