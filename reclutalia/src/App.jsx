@@ -118,6 +118,12 @@ button.fase-sub.on{background:var(--ink);border-color:var(--ink);color:#fff;}
 .check-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px dashed var(--line);border-radius:11px;}
 .chk-inline{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink2);margin-top:6px;cursor:pointer;}
 .chk-inline input{width:auto;margin:0;}
+/* Solicitud de cambios por campo (Batch 6) */
+.lapiz{background:none;border:1px solid var(--line);border-radius:6px;padding:2px 5px;cursor:pointer;color:var(--gray);vertical-align:middle;margin-left:6px;line-height:0;}
+.lapiz:hover{border-color:var(--gold);color:var(--gold-dark);}
+.lapiz.on{border-color:var(--gold);color:var(--gold-dark);background:var(--gold-soft);}
+.anot{display:flex;gap:8px;align-items:center;background:var(--gold-soft);border:1px solid #F0D9A5;border-radius:9px;padding:7px 10px;margin-top:6px;font-size:12.5px;color:var(--gold-dark);flex-wrap:wrap;}
+.anot.rej{background:var(--bg);border-color:var(--line);color:var(--gray);}
 .check-item.done{border-style:solid;background:var(--ok-soft);border-color:#BBDFC6;}
 .check-item+.check-item{margin-top:9px;}
 .stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
@@ -189,6 +195,14 @@ const SEDES = {
 };
 /* Tipo de vacante (Batch 5 · A4) — opción única */
 const TIPOS_VACANTE = ["Estándar","Preventiva","Proactiva","Confidencial"];
+/* Campos del descriptivo anotables en la solicitud de cambios por campo (Batch 6 · F15/A8).
+   Clave canónica → etiqueta visible; v.cambios usa estas claves ({campo:anotación}). */
+const CAMPOS_DESC = { titulo:"Título del puesto", descripcion:"Descripción", area:"Área", nivelPuesto:"Nivel del puesto",
+  numVacantes:"Número de posiciones", ubicacionTrabajo:"Ubicación del trabajo", sede:"Sede", unidadNegocio:"Unidad de Negocio",
+  tipoVacante:"Tipo de vacante", anosExp:"Años de experiencia", educacion:"Nivel de estudios", radio:"Radio de búsqueda",
+  espRequeridas:"Especialidades requeridas", espOpcionales:"Especialidades opcionales", hardSkills:"Habilidades técnicas",
+  softSkills:"Habilidades blandas", aptitudes:"Aptitudes", edad:"Rango de edad", killer:"Preguntas filtro",
+  modalidad:"Modalidad", dias:"Días de trabajo", horario:"Horario", salario:"Rango salarial", examenMedico:"Examen médico" };
 const ESPECIALIDADES = ["Ventas B2C","Ventas B2B","Desarrollo Frontend","Desarrollo Backend","Ciencia de Datos","Business Intelligence","Marketing Digital","CRM y Fidelización","Contabilidad","Planeación Financiera","Atracción de Talento","Capacitación","Logística","Cadena de Suministro","Servicio al Cliente","Cobranza","Derecho Corporativo","Cumplimiento (Compliance)","Gestión de Producto","UX/UI","Ciberseguridad","Infraestructura TI"];
 const HARD_SKILLS = ["Excel avanzado","SQL","Python","Power BI","Tableau","React","Node.js","SAP","Salesforce","CRM","Google Ads","Meta Ads","SEO","Contabilidad NIF","Modelado financiero","Nómina","LMS","Zendesk","AutoCAD","Scrum","Figma","Redes Cisco","Inglés avanzado","Negociación comercial","Prospección en frío"];
 const SOFT_SKILLS = ["Comunicación efectiva","Liderazgo","Trabajo en equipo","Orientación a resultados","Adaptabilidad","Pensamiento analítico","Empatía","Negociación","Atención al detalle","Gestión del tiempo","Resolución de conflictos","Proactividad"];
@@ -974,19 +988,31 @@ const ACT={
     notify(db,{tipo:"formador",id:formadorId},"Se te liberó una nueva vacante",`La vacante ${v.id} · "${req.titulo}" fue asignada a ti. Revisa el descriptivo, solicita cambios o apruébala para iniciar la búsqueda.`,v.id);
     return v.id;
   },
-  editarVacante(db, vacId, req){
-    const v=db.vacantes.find(x=>x.id===vacId); v.req=req;
+  /* Batch 6 (A8): al reenviar, registra qué campos se aplicaron y cuáles se rechazaron */
+  editarVacante(db, vacId, req, rechazados=[]){
+    const v=db.vacantes.find(x=>x.id===vacId); const prev=v.cambios; v.req=req;
     if(v.estado==="cambios"){
       v.estado="asignada"; v.cambios=null;
-      v.historial.push("El administrador aplicó los cambios solicitados · "+hoy());
-      notify(db,{tipo:"formador",id:v.formadorId},"Vacante actualizada",`El descriptivo de ${v.id} · "${req.titulo}" fue actualizado con tus cambios. Revísalo y apruébalo para iniciar la búsqueda.`,v.id);
+      const nom=(ks)=>ks.map(k=>CAMPOS_DESC[k]||k).join(", ");
+      let det="";
+      if(prev && typeof prev==="object"){
+        const sol=Object.keys(prev);
+        const rech=rechazados.filter(k=>sol.includes(k));
+        const apl=sol.filter(k=>!rech.includes(k));
+        det=(apl.length?`Cambios aplicados: ${nom(apl)}`:"Sin cambios aplicados")+(rech.length?` · Rechazados: ${nom(rech)}`:"");
+      } else det="El administrador aplicó los cambios solicitados";
+      v.historial.push(det+" · "+hoy());
+      notify(db,{tipo:"formador",id:v.formadorId},"Vacante actualizada",`El descriptivo de ${v.id} · "${req.titulo}" fue actualizado. ${det}. Revísalo y apruébalo para iniciar la búsqueda.`,v.id);
     }
   },
-  solicitarCambios(db, vacId, texto){
+  /* Batch 6 (F15): cambios = {campo:anotación} (por campo); un string legado sigue funcionando */
+  solicitarCambios(db, vacId, cambios){
     const v=db.vacantes.find(x=>x.id===vacId);
-    v.estado="cambios"; v.cambios=texto;
-    v.historial.push("El formador solicitó cambios · "+hoy());
-    notify(db,{tipo:"admin",id:"A1"},"Cambios solicitados en "+vacId,`El formador solicitó ajustes al descriptivo de "${v.req.titulo}": ${texto}`,v.id);
+    v.estado="cambios"; v.cambios=cambios;
+    const porCampo = cambios && typeof cambios==="object";
+    const resumen = porCampo ? Object.entries(cambios).map(([k,a])=>`${CAMPOS_DESC[k]||k}: ${a}`).join(" · ") : cambios;
+    v.historial.push("El formador solicitó cambios"+(porCampo?` en ${Object.keys(cambios).length} campo(s)`:"")+" · "+hoy());
+    notify(db,{tipo:"admin",id:"A1"},"Cambios solicitados en "+vacId,`El formador solicitó ajustes al descriptivo de "${v.req.titulo}": ${resumen}`,v.id);
   },
   aprobarVacante(db, vacId){
     const v=db.vacantes.find(x=>x.id===vacId);
@@ -1102,6 +1128,12 @@ const ACT={
     p.historial.push("Resultado del examen médico validado por el formador · "+hoy());
     notify(db,{tipo:"candidato",id:cid},"Examen médico validado",`Tu examen médico para "${v.req.titulo}" fue validado. Ya puedes completar y enviar tu documentación de contratación.`,v.id);
   },
+  /* Recordatorio al candidato seleccionado de subir sus documentos pendientes */
+  recordarDocs(db, vacId, cid){
+    const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
+    p.historial.push("Recordatorio de documentación pendiente enviado · "+hoy());
+    notify(db,{tipo:"candidato",id:cid},"Recordatorio: documentación pendiente",`El formador te recuerda completar y enviar tu documentación de contratación para "${v.req.titulo}" (revisa el checklist en tu panel; solo PDF, máx. 1 MB por archivo).`,v.id);
+  },
   docsContratoListos(db, vacId, cid){
     const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
     p.estado="docs_completos"; p.historial.push("Documentación de contratación completa y validada · "+hoy());
@@ -1176,11 +1208,25 @@ const ACT={
 };
 
 /* ============================== FORMULARIO ESTANDARIZADO DE VACANTE ============================== */
-function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
+function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop, cambios}){
   const [r,setR]=useState(inicial||mkReq({}));
   const [sec,setSec]=useState(0);
   const set=(k,v)=>setR(x=>({...x,[k]:v}));
   const [kq,setKq]=useState("");
+  /* Solicitudes de cambio por campo (Batch 6 · A8): el admin aplica editando el campo o lo rechaza */
+  const [rechazados,setRechazados]=useState([]);
+  const porCampo = cambios && typeof cambios==="object" ? cambios : null;
+  const Anot=({k})=>{
+    if(!porCampo || !porCampo[k]) return null;
+    const rej=rechazados.includes(k);
+    return (
+      <div className={"anot"+(rej?" rej":"")}>
+        <AlertCircle size={13}/>
+        <span style={{flex:1}}><b>Cambio solicitado:</b> {porCampo[k]}{rej && <b> · Rechazado</b>}</span>
+        <button type="button" className="btn ghost sm" onClick={()=>setRechazados(x=>rej?x.filter(y=>y!==k):[...x,k])}>{rej?"Reconsiderar":"Rechazar cambio"}</button>
+      </div>
+    );
+  };
   const SECS=["1 · El puesto","2 · Perfil del candidato","3 · Preguntas filtro","4 · Condiciones"];
   const valido = r.titulo.trim() && r.descripcion.trim() && r.espRequeridas.length>0 && r.hardSkills.length>0;
   /* Validación por sección (Batch 5 · A7): "Siguiente" se bloquea hasta completar los obligatorios;
@@ -1210,19 +1256,25 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
   return (
     <div>
       {extraTop}
+      {cambios && typeof cambios==="string" && (
+        <div className="anot" style={{marginBottom:14}}><AlertCircle size={13}/><span style={{flex:1}}><b>El formador solicitó:</b> "{cambios}"</span></div>
+      )}
+      {porCampo && (
+        <div className="anot" style={{marginBottom:14}}><AlertCircle size={13}/><span style={{flex:1}}>El formador solicitó cambios en <b>{Object.keys(porCampo).length} campo(s)</b> (resaltados en cada sección). Aplica el cambio editando el campo o márcalo como rechazado.</span></div>
+      )}
       <div className="tabs">{SECS.map((s,i)=><button key={i} className={"tab"+(sec===i?" on":"")} onClick={()=>setSec(i)}>{s}</button>)}</div>
 
       {sec===0 && <div>
         <div className="grid2">
-          <div className="field"><label>Título del puesto *</label><input value={r.titulo} onChange={e=>set("titulo",e.target.value)} placeholder="p. ej. Ejecutivo de Ventas Digitales"/></div>
-          <div className="field"><label>Área</label><select value={r.area} onChange={e=>set("area",e.target.value)}>{AREAS.map(a=><option key={a}>{a}</option>)}</select></div>
+          <div className="field"><label>Título del puesto *</label><input value={r.titulo} onChange={e=>set("titulo",e.target.value)} placeholder="p. ej. Ejecutivo de Ventas Digitales"/><Anot k="titulo"/></div>
+          <div className="field"><label>Área</label><select value={r.area} onChange={e=>set("area",e.target.value)}>{AREAS.map(a=><option key={a}>{a}</option>)}</select><Anot k="area"/></div>
         </div>
         <div className="field"><label>Descripción del puesto *</label>
-          <textarea rows={4} value={r.descripcion} onChange={e=>set("descripcion",e.target.value)} placeholder="Responsabilidades, objetivos y contexto del equipo…"/></div>
+          <textarea rows={4} value={r.descripcion} onChange={e=>set("descripcion",e.target.value)} placeholder="Responsabilidades, objetivos y contexto del equipo…"/><Anot k="descripcion"/></div>
         <div className="grid3">
-          <div className="field"><label>Nivel del puesto</label><select value={r.nivelPuesto} onChange={e=>set("nivelPuesto",e.target.value)}>{NIVELES.map(a=><option key={a}>{a}</option>)}</select></div>
-          <div className="field"><label>Número de posiciones</label><input type="number" min="1" value={r.numVacantes} onChange={e=>set("numVacantes",+e.target.value)}/></div>
-          <div className="field"><label>Ubicación del trabajo</label><select value={r.ubicacionTrabajo} onChange={e=>set("ubicacionTrabajo",e.target.value)}>{CIUDADES.map(a=><option key={a}>{a}</option>)}</select></div>
+          <div className="field"><label>Nivel del puesto</label><select value={r.nivelPuesto} onChange={e=>set("nivelPuesto",e.target.value)}>{NIVELES.map(a=><option key={a}>{a}</option>)}</select><Anot k="nivelPuesto"/></div>
+          <div className="field"><label>Número de posiciones</label><input type="number" min="1" value={r.numVacantes} onChange={e=>set("numVacantes",+e.target.value)}/><Anot k="numVacantes"/></div>
+          <div className="field"><label>Ubicación del trabajo</label><select value={r.ubicacionTrabajo} onChange={e=>set("ubicacionTrabajo",e.target.value)}>{CIUDADES.map(a=><option key={a}>{a}</option>)}</select><Anot k="ubicacionTrabajo"/></div>
         </div>
         <div className="grid3">
           <div className="field"><label>Tipo de sede *</label>
@@ -1231,12 +1283,13 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
             <select value={r.sede} onChange={e=>set("sede",e.target.value)}>
               <option value="">Selecciona la sede…</option>
               {SEDES[r.tipoSede].map(s=><option key={s}>{s}</option>)}
-            </select></div>
-          <div className="field"><label>Unidad de Negocio *</label><input value={r.unidadNegocio} onChange={e=>set("unidadNegocio",e.target.value)} placeholder="p. ej. Banca Digital, Retail Centro…"/></div>
+            </select><Anot k="sede"/></div>
+          <div className="field"><label>Unidad de Negocio *</label><input value={r.unidadNegocio} onChange={e=>set("unidadNegocio",e.target.value)} placeholder="p. ej. Banca Digital, Retail Centro…"/><Anot k="unidadNegocio"/></div>
         </div>
         <div className="field"><label>Tipo de vacante</label>
           <div className="tagpick">{TIPOS_VACANTE.map(t=><button type="button" key={t} className={"tag"+(r.tipoVacante===t?" on":"")} onClick={()=>set("tipoVacante",t)}>{t}</button>)}</div>
-          {r.tipoVacante==="Confidencial" && <div className="help">Se mostrará con un chip "Confidencial" al administrador y al formador.</div>}
+          {r.tipoVacante==="Confidencial" && <div className="help">Se mostrará con un chip "Confidencial" al administrador y al formador. No aparecerá en "Buscar vacantes" del candidato.</div>}
+          <Anot k="tipoVacante"/>
         </div>
       </div>}
 
@@ -1245,10 +1298,12 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
           <div className="field"><label>Años de experiencia mínimos</label>
             <input type="number" min="0" value={r.anosExp} onChange={e=>set("anosExp",+e.target.value)} disabled={r.expNoRelevante}/>
             <label className="chk-inline"><input type="checkbox" checked={r.expNoRelevante} onChange={e=>set("expNoRelevante",e.target.checked)}/> No relevante</label>
+            <Anot k="anosExp"/>
           </div>
           <div className="field"><label>Nivel de estudios</label>
             <select value={r.educacion} onChange={e=>set("educacion",e.target.value)}>{EDUCACION.map(a=><option key={a}>{a}</option>)}</select>
             <label className="chk-inline"><input type="checkbox" checked={r.puedeSerSuperior} onChange={e=>set("puedeSerSuperior",e.target.checked)}/> Puede ser superior</label>
+            <Anot k="educacion"/>
           </div>
           <div className="field"><label>Radio de búsqueda del candidato</label>
             <div style={{display:"flex",gap:8}}>
@@ -1257,6 +1312,7 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
             </div>
             <label className="chk-inline"><input type="checkbox" checked={r.ubicacionNoRelevante} onChange={e=>set("ubicacionNoRelevante",e.target.checked)}/> Ubicación no relevante</label>
             <div className="help">{r.ubicacionNoRelevante?"La IA no restringirá por ubicación: todos los candidatos reciben el puntaje completo de distancia.":"La IA prioriza candidatos dentro de este radio."}</div>
+            <Anot k="radio"/>
           </div>
         </div>
         <div className="field" style={{maxWidth:420}}><label>Rango de edad preferida</label>
@@ -1266,17 +1322,18 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
           </div>
           <label className="chk-inline"><input type="checkbox" checked={r.edadNoRelevante} onChange={e=>set("edadNoRelevante",e.target.checked)}/> Edad no relevante</label>
           <div className="help">Referencia para el equipo de reclutamiento; la edad NO afecta el ranking de compatibilidad de la IA.</div>
+          <Anot k="edad"/>
         </div>
         <div className="field"><label>Especialidades requeridas * <span style={{fontWeight:400,color:"var(--gray)"}}>(selección múltiple)</span></label>
-          <TagPicker options={ESPECIALIDADES} value={r.espRequeridas} onChange={v=>set("espRequeridas",v)} addNew/></div>
+          <TagPicker options={ESPECIALIDADES} value={r.espRequeridas} onChange={v=>set("espRequeridas",v)} addNew/><Anot k="espRequeridas"/></div>
         <div className="field"><label>Especialidades opcionales (deseables)</label>
-          <TagPicker options={ESPECIALIDADES.filter(e=>!r.espRequeridas.includes(e))} value={r.espOpcionales} onChange={v=>set("espOpcionales",v)} addNew/></div>
+          <TagPicker options={ESPECIALIDADES.filter(e=>!r.espRequeridas.includes(e))} value={r.espOpcionales} onChange={v=>set("espOpcionales",v)} addNew/><Anot k="espOpcionales"/></div>
         <div className="field"><label>Habilidades duras / técnicas requeridas *</label>
-          <TagPicker options={HARD_SKILLS} value={r.hardSkills} onChange={v=>set("hardSkills",v)} addNew/></div>
+          <TagPicker options={HARD_SKILLS} value={r.hardSkills} onChange={v=>set("hardSkills",v)} addNew/><Anot k="hardSkills"/></div>
         <div className="field"><label>Habilidades blandas requeridas</label>
-          <TagPicker options={SOFT_SKILLS} value={r.softSkills} onChange={v=>set("softSkills",v)} addNew/></div>
+          <TagPicker options={SOFT_SKILLS} value={r.softSkills} onChange={v=>set("softSkills",v)} addNew/><Anot k="softSkills"/></div>
         <div className="field"><label>Aptitudes a evaluar</label>
-          <TagPicker options={APTITUDES} value={r.aptitudes} onChange={v=>set("aptitudes",v)} addNew/></div>
+          <TagPicker options={APTITUDES} value={r.aptitudes} onChange={v=>set("aptitudes",v)} addNew/><Anot k="aptitudes"/></div>
       </div>}
 
       {sec===2 && <div>
@@ -1295,20 +1352,22 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
           <input placeholder="Escribe una pregunta cerrada (respuesta Sí/No)…" value={kq} onChange={e=>setKq(e.target.value)}/>
           <button className="btn dark sm" onClick={()=>{ if(kq.trim()){ set("killer",[...r.killer,{q:kq.trim()}]); setKq(""); }}}><Plus size={14}/> Agregar</button>
         </div>
+        <Anot k="killer"/>
       </div>}
 
       {sec===3 && <div>
         <div className="grid2">
           <div className="field"><label>Modalidad de trabajo</label>
-            <div className="tagpick">{MODALIDADES.map(m=><button type="button" key={m} className={"tag"+(r.modalidad===m?" on":"")} onClick={()=>set("modalidad",m)}>{m}</button>)}</div></div>
-          <div className="field"><label>Días de trabajo</label><TagPicker options={DIAS} value={r.dias} onChange={v=>set("dias",v)}/></div>
-          <div className="field"><label>Horario</label><input value={r.horario} onChange={e=>set("horario",e.target.value)} placeholder="p. ej. 9:00 – 18:00"/></div>
+            <div className="tagpick">{MODALIDADES.map(m=><button type="button" key={m} className={"tag"+(r.modalidad===m?" on":"")} onClick={()=>set("modalidad",m)}>{m}</button>)}</div><Anot k="modalidad"/></div>
+          <div className="field"><label>Días de trabajo</label><TagPicker options={DIAS} value={r.dias} onChange={v=>set("dias",v)}/><Anot k="dias"/></div>
+          <div className="field"><label>Horario</label><input value={r.horario} onChange={e=>set("horario",e.target.value)} placeholder="p. ej. 9:00 – 18:00"/><Anot k="horario"/></div>
           <div className="field"><label>Rango salarial mensual bruto</label>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <input type="number" value={r.salarioMin} onChange={e=>set("salarioMin",+e.target.value)}/><span>a</span>
               <input type="number" value={r.salarioMax} onChange={e=>set("salarioMax",+e.target.value)}/>
             </div>
             <div className="help">Rango autorizado por Compensaciones (tabulador precargado · simulado).</div>
+            <Anot k="salario"/>
           </div>
         </div>
         <div className="field" style={{marginTop:4}}>
@@ -1318,13 +1377,14 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
             <span style={{flex:1,fontSize:13,lineHeight:1.5}}>¿Esta vacante requiere examen médico al candidato seleccionado?</span>
           </label>
           <div className="help">Si se activa, el candidato seleccionado deberá agendar y aprobar un examen médico antes de completar su documentación.</div>
+          <Anot k="examenMedico"/>
         </div>
       </div>}
 
       <div style={{display:"flex",gap:10,marginTop:18,alignItems:"center",flexWrap:"wrap"}}>
         {sec>0 && <button className="btn ghost" onClick={()=>setSec(sec-1)}>Anterior</button>}
         {sec<3 && <button className="btn dark" disabled={faltan.length>0} onClick={()=>setSec(sec+1)}>Siguiente <ChevronRight size={15}/></button>}
-        {sec===3 && <button className="btn gold" disabled={!valido||faltanTodas.length>0} onClick={()=>onSave(r)}><CheckCircle2 size={15}/> {saveLabel}</button>}
+        {sec===3 && <button className="btn gold" disabled={!valido||faltanTodas.length>0} onClick={()=>onSave(r,rechazados)}><CheckCircle2 size={15}/> {saveLabel}</button>}
         {faltan.length>0 && <span className="help" style={{color:"var(--bad)"}}><AlertCircle size={12} style={{verticalAlign:-2}}/> Para continuar completa: {faltan.join(", ")}.</span>}
         {sec===3 && faltan.length===0 && faltanTodas.length>0 && <span className="help" style={{color:"var(--bad)"}}><AlertCircle size={12} style={{verticalAlign:-2}}/> Faltan campos en otras secciones: {[...new Set(faltanTodas)].join(", ")}.</span>}
       </div>
@@ -1333,51 +1393,94 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
 }
 
 /* ============================== PANEL DEL FORMADOR ============================== */
+/* Resumen de cambios solicitados (Batch 6): objeto {campo:anotación} o string legado */
+function CambiosResumen({cambios}){
+  if(!cambios) return null;
+  if(typeof cambios==="string") return <p style={{fontSize:13,marginTop:6}}>"{cambios}"</p>;
+  return <div style={{marginTop:6}}>{Object.entries(cambios).map(([k,a])=><div key={k} style={{fontSize:13,marginTop:3}}>• <b>{CAMPOS_DESC[k]||k}:</b> {a}</div>)}</div>;
+}
+
 function VistaDescriptivo({v, cand, onAprobar, onCambios}){
   const [modo,setModo]=useState("ver");
-  const [txt,setTxt]=useState("");
+  const [cambiosMap,setCambiosMap]=useState({});
+  const [campoEdit,setCampoEdit]=useState(null);
   const r=v.req;
-  const Row=({l,c})=><div style={{marginBottom:10}}><label>{l}</label><div style={{fontSize:13.5}}>{c}</div></div>;
+  const limpio=Object.fromEntries(Object.entries(cambiosMap).map(([k,a])=>[k,a.trim()]).filter(([,a])=>a));
+  const nSol=Object.keys(limpio).length;
+  /* Solicitud de cambios por campo (Batch 6 · F15): en modo "cambios" cada Row con clave k muestra un lápiz.
+     El input de la anotación vive en la tarjeta superior (Row es un componente inline: un input adentro
+     perdería el foco en cada tecleo al re-montarse). */
+  const Row=({l,c,k})=>(
+    <div style={{marginBottom:10}}>
+      <label>{l}{modo==="cambios" && k && (
+        <button type="button" className={"lapiz"+(limpio[k]||campoEdit===k?" on":"")} title={"Solicitar cambio en: "+l}
+          onClick={()=>setCampoEdit(campoEdit===k?null:k)}><Edit3 size={12}/></button>
+      )}</label>
+      <div style={{fontSize:13.5}}>{c}</div>
+      {modo==="cambios" && k && limpio[k] && (
+        <div className="anot"><Edit3 size={13}/><span style={{flex:1}}>{limpio[k]}</span></div>
+      )}
+    </div>
+  );
   return (
     <div>
-      {v.estado==="asignada" && (
+      {v.estado==="asignada" && modo==="ver" && (
         <div className="aibox" style={{marginBottom:16}}>
           <div className="hd"><Sparkles size={15}/> Descriptivo precargado — requiere tu aprobación</div>
           <p style={{fontSize:13,color:"var(--ink2)"}}>El sistema precargó salario, funciones y atributos desde la estructura organizacional (HCM/TGS · simulado). Revisa el descriptivo: puedes <b>aprobarlo</b> para iniciar la búsqueda o <b>solicitar cambios</b> al administrador.</p>
         </div>
       )}
+      {modo==="cambios" && (
+        <div className="card" style={{background:"var(--gold-soft)",borderColor:"#F0D9A5",marginBottom:16}}>
+          <b style={{fontSize:13.5}}><Edit3 size={14} style={{verticalAlign:-2}}/> Solicitud de cambios por campo</b>
+          <p style={{fontSize:13,marginTop:6}}>Usa el lápiz <Edit3 size={11} style={{verticalAlign:-1}}/> junto a cada campo para anotar el cambio que necesitas. Las anotaciones se acumulan y se envían juntas al administrador.</p>
+          {campoEdit && (
+            <div className="field" style={{marginTop:10,marginBottom:0}}>
+              <label>Cambio solicitado en: {CAMPOS_DESC[campoEdit]||campoEdit}</label>
+              <input key={campoEdit} autoFocus placeholder="Describe el ajuste que necesitas en este campo…"
+                value={cambiosMap[campoEdit]||""} onChange={e=>setCambiosMap(m=>({...m,[campoEdit]:e.target.value}))}
+                onKeyDown={e=>{ if(e.key==="Enter") setCampoEdit(null); }}/>
+            </div>
+          )}
+          <div style={{display:"flex",gap:8,marginTop:10,alignItems:"center",flexWrap:"wrap"}}>
+            <button className="btn dark sm" disabled={nSol===0} onClick={()=>{onCambios(limpio); setModo("ver"); setCambiosMap({}); setCampoEdit(null);}}><Send size={13}/> Enviar solicitud ({nSol} campo{nSol===1?"":"s"})</button>
+            <button className="btn ghost sm" onClick={()=>{setModo("ver"); setCambiosMap({}); setCampoEdit(null);}}>Cancelar</button>
+            {nSol===0 && <span className="help">Anota al menos un campo para poder enviar.</span>}
+          </div>
+        </div>
+      )}
       {v.estado==="cambios" && (
         <div className="card" style={{background:"var(--gold-soft)",borderColor:"#F0D9A5",marginBottom:16}}>
           <b style={{fontSize:13.5}}><Clock size={14} style={{verticalAlign:-2}}/> Cambios solicitados al administrador</b>
-          <p style={{fontSize:13,marginTop:6}}>"{v.cambios}"</p>
+          <CambiosResumen cambios={v.cambios}/>
           <p className="help">Recibirás una notificación cuando el descriptivo esté actualizado.</p>
         </div>
       )}
       <div className="grid2">
         <div>
-          <Row l="Puesto" c={<b>{r.titulo}</b>}/>
-          <Row l="Descripción" c={r.descripcion}/>
-          <Row l="Especialidades requeridas" c={<div className="tagpick">{r.espRequeridas.map(e=><span key={e} className="chip gold">{e}</span>)}</div>}/>
-          {r.espOpcionales.length>0 && <Row l="Especialidades opcionales" c={<div className="tagpick">{r.espOpcionales.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>}
-          <Row l="Habilidades técnicas" c={<div className="tagpick">{r.hardSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>
-          <Row l="Habilidades blandas" c={<div className="tagpick">{r.softSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>
-          {r.aptitudes.length>0 && <Row l="Aptitudes a evaluar" c={<div className="tagpick">{r.aptitudes.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>}
+          <Row l="Puesto" k="titulo" c={<b>{r.titulo}</b>}/>
+          <Row l="Descripción" k="descripcion" c={r.descripcion}/>
+          <Row l="Especialidades requeridas" k="espRequeridas" c={<div className="tagpick">{r.espRequeridas.map(e=><span key={e} className="chip gold">{e}</span>)}</div>}/>
+          {r.espOpcionales.length>0 && <Row l="Especialidades opcionales" k="espOpcionales" c={<div className="tagpick">{r.espOpcionales.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>}
+          <Row l="Habilidades técnicas" k="hardSkills" c={<div className="tagpick">{r.hardSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>
+          <Row l="Habilidades blandas" k="softSkills" c={<div className="tagpick">{r.softSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>
+          {r.aptitudes.length>0 && <Row l="Aptitudes a evaluar" k="aptitudes" c={<div className="tagpick">{r.aptitudes.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>}
         </div>
         <div>
           <div className="grid2">
-            <Row l="Área" c={r.area}/><Row l="Nivel" c={r.nivelPuesto}/>
-            <Row l="Experiencia mínima" c={r.expNoRelevante? "No relevante" : r.anosExp+" años"}/><Row l="Estudios" c={r.educacion+(r.puedeSerSuperior?" o superior":"")}/>
-            <Row l="Ubicación del trabajo" c={r.ubicacionTrabajo}/><Row l="Modalidad" c={r.modalidad}/>
-            <Row l="Horario" c={r.horario}/><Row l="Días" c={r.dias.join(", ")}/>
-            <Row l="Rango salarial" c={money(r.salarioMin)+" – "+money(r.salarioMax)}/><Row l="Posiciones" c={r.numVacantes}/>
-            <Row l="Búsqueda de candidatos" c={r.ubicacionNoRelevante? "Ubicación no relevante (sin restricción)" : `${r.ubicacionCandidato} · radio ${r.radioKm} km`}/>
-            <Row l="Edad preferida" c={r.edadNoRelevante? "No relevante" : `${r.edadMin} – ${r.edadMax} años`}/>
-            {r.sede && <Row l="Sede" c={`${r.tipoSede} · ${r.sede}`}/>}
-            {r.unidadNegocio && <Row l="Unidad de Negocio" c={r.unidadNegocio}/>}
-            <Row l="Tipo de vacante" c={r.tipoVacante==="Confidencial"? <Chip tone="gold" icon={ShieldCheck}>Confidencial</Chip> : (r.tipoVacante||"Estándar")}/>
-            {r.examenMedico && <Row l="Examen médico" c={<Chip tone="gold" icon={ShieldCheck}>Requerido al candidato seleccionado</Chip>}/>}
+            <Row l="Área" k="area" c={r.area}/><Row l="Nivel" k="nivelPuesto" c={r.nivelPuesto}/>
+            <Row l="Experiencia mínima" k="anosExp" c={r.expNoRelevante? "No relevante" : r.anosExp+" años"}/><Row l="Estudios" k="educacion" c={r.educacion+(r.puedeSerSuperior?" o superior":"")}/>
+            <Row l="Ubicación del trabajo" k="ubicacionTrabajo" c={r.ubicacionTrabajo}/><Row l="Modalidad" k="modalidad" c={r.modalidad}/>
+            <Row l="Horario" k="horario" c={r.horario}/><Row l="Días" k="dias" c={r.dias.join(", ")}/>
+            <Row l="Rango salarial" k="salario" c={money(r.salarioMin)+" – "+money(r.salarioMax)}/><Row l="Posiciones" k="numVacantes" c={r.numVacantes}/>
+            <Row l="Búsqueda de candidatos" k="radio" c={r.ubicacionNoRelevante? "Ubicación no relevante (sin restricción)" : `${r.ubicacionCandidato} · radio ${r.radioKm} km`}/>
+            <Row l="Edad preferida" k="edad" c={r.edadNoRelevante? "No relevante" : `${r.edadMin} – ${r.edadMax} años`}/>
+            {r.sede && <Row l="Sede" k="sede" c={`${r.tipoSede} · ${r.sede}`}/>}
+            {r.unidadNegocio && <Row l="Unidad de Negocio" k="unidadNegocio" c={r.unidadNegocio}/>}
+            <Row l="Tipo de vacante" k="tipoVacante" c={r.tipoVacante==="Confidencial"? <Chip tone="gold" icon={ShieldCheck}>Confidencial</Chip> : (r.tipoVacante||"Estándar")}/>
+            {r.examenMedico && <Row l="Examen médico" k="examenMedico" c={<Chip tone="gold" icon={ShieldCheck}>Requerido al candidato seleccionado</Chip>}/>}
           </div>
-          {r.killer.length>0 && <Row l="Preguntas filtro (killer questions)" c={r.killer.map((k,i)=><div key={i} style={{fontSize:13,marginTop:4}}>• {k.q}</div>)}/>}
+          {r.killer.length>0 && <Row l="Preguntas filtro (killer questions)" k="killer" c={r.killer.map((k,i)=><div key={i} style={{fontSize:13,marginTop:4}}>• {k.q}</div>)}/>}
           <Row l="Historial" c={v.historial.map((h,i)=><div key={i} className="help">• {h}</div>)}/>
         </div>
       </div>
@@ -1385,16 +1488,6 @@ function VistaDescriptivo({v, cand, onAprobar, onCambios}){
         <div style={{display:"flex",gap:10,marginTop:16}}>
           <button className="btn gold" onClick={onAprobar}><CheckCircle2 size={16}/> Aprobar e iniciar búsqueda</button>
           <button className="btn ghost" onClick={()=>setModo("cambios")}><Edit3 size={15}/> Solicitar cambios</button>
-        </div>
-      )}
-      {modo==="cambios" && (
-        <div className="card" style={{marginTop:14}}>
-          <label>¿Qué necesitas ajustar del descriptivo?</label>
-          <textarea rows={3} value={txt} onChange={e=>setTxt(e.target.value)} placeholder="p. ej. Ajustar el rango salarial a $15,000 – $20,000 y agregar inglés intermedio…"/>
-          <div style={{display:"flex",gap:8,marginTop:10}}>
-            <button className="btn dark" disabled={!txt.trim()} onClick={()=>{onCambios(txt); setModo("ver");}}><Send size={14}/> Enviar solicitud al administrador</button>
-            <button className="btn ghost" onClick={()=>setModo("ver")}>Cancelar</button>
-          </div>
         </div>
       )}
     </div>
@@ -1703,8 +1796,19 @@ function SolicitarMasModal({v, onConfirmar, onClose}){
 }
 
 /* ============================== DETALLE DE VACANTE (Formador) ============================== */
+/* Tab inicial al abrir la vacante: el sub-paso activo o pendiente del proceso (no el pool por default).
+   Ajustes sobre faseVacante: evaluados aún sin invitar → Ranking; oferta enviada sin aceptar → Carta oferta. */
+function tabInicial(v){
+  const {subpaso}=faseVacante(v);
+  const ps=Object.values(v.pipeline||{});
+  const mx=ps.length? Math.max(...ps.map(p=>PIPE_IDX[p.estado]??-1)) : -1;
+  if(subpaso===3 && mx<PIPE_IDX.slots_enviados) return 2;
+  if(subpaso===6 && v.estado!=="cerrada" && mx<PIPE_IDX.contratado) return 5;
+  return subpaso;
+}
+
 function VacanteDetail({db, v, run, toast}){
-  const [tab,setTab]=useState(v.estado==="abierta"||v.estado==="cerrada"?1:0);
+  const [tab,setTab]=useState(tabInicial(v));
   const [perfil,setPerfil]=useState(null);
   const [invitando,setInvitando]=useState(null);
   const [selEnt,setSelEnt]=useState([]);
@@ -2017,7 +2121,12 @@ function VacanteDetail({db, v, run, toast}){
                 <Avatar nombre={seleccionado.c.nombre}/>
                 <div style={{flex:1}}><b style={{fontSize:15}}>{seleccionado.c.nombre}</b> <Chip tone="ok" icon={CheckCircle2}>Candidato seleccionado</Chip>
                   <div style={{fontSize:12.5,color:"var(--gray)"}}>Se notificó al candidato con la felicitación y el checklist de documentos. Los demás candidatos fueron notificados y canalizados a otras vacantes compatibles.</div></div>
-                {seleccionado.p.estado==="seleccionado" && <SimBtn cid={seleccionado.cid} label="Simular carga de documentos"/>}
+                {seleccionado.p.estado==="seleccionado" && (
+                  <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
+                    <button className="btn gold sm" onClick={()=>{run(d=>ACT.recordarDocs(d,v.id,seleccionado.cid)); toast("Recordatorio enviado a "+seleccionado.c.nombre.split(" ")[0]);}}><Bell size={13}/> Enviar recordatorio de documentos</button>
+                    <SimBtn cid={seleccionado.cid} label="Simular carga de documentos"/>
+                  </div>
+                )}
               </div>
               <label>Checklist de documentación del candidato (PDF · máx. 1 MB c/u)</label>
               {[["ine","Identificación oficial (INE)"],["curp","CURP"],["rfc","Constancia de situación fiscal (RFC)"],["domicilio","Comprobante de domicilio"],["estudios","Comprobante de estudios"]].map(([k,l])=>(
@@ -2705,7 +2814,8 @@ function BuscarVacantes({db, cand, run, toast}){
   const [aplicarA,setAplicarA]=useState(null);
   const favoritos=cand.favoritos||[];
   const SUELDOS={ todos:[0,Infinity], s1:[0,15000], s2:[15000,25000], s3:[25000,Infinity] };
-  const lista=db.vacantes.filter(v=>v.estado==="abierta")
+  /* Las vacantes Confidenciales no aparecen en la búsqueda por cuenta propia del candidato (Batch 6) */
+  const lista=db.vacantes.filter(v=>v.estado==="abierta" && v.req.tipoVacante!=="Confidencial")
     .filter(v=>fCiudad==="todas"||v.req.ubicacionTrabajo===fCiudad)
     .filter(v=>fNivel==="todos"||v.req.nivelPuesto===fNivel)
     .filter(v=>fArea==="todas"||v.req.area===fArea)
@@ -2896,15 +3006,15 @@ function AdminPanel({db, run, toast, vista, setVista}){
               {["asignada","cambios"].includes(v.estado) && <button className="btn ghost sm" onClick={()=>setEditV(v)}><Edit3 size={12}/> Editar descriptivo</button>}
             </span>
           </div>
-          {v.estado==="cambios" && <div className="card" style={{marginTop:10,background:"var(--bad-soft)",borderColor:"#F0C4C1",padding:"10px 14px",fontSize:12.5}}><b>El formador solicitó:</b> "{v.cambios}"</div>}
+          {v.estado==="cambios" && <div className="card" style={{marginTop:10,background:"var(--bad-soft)",borderColor:"#F0C4C1",padding:"10px 14px",fontSize:12.5}}><b>El formador solicitó:</b><CambiosResumen cambios={v.cambios}/></div>}
           <div style={{marginTop:12}}><FasesBar v={v} compact/></div>
         </div>
       ))}
       {editV && (
         <Modal onClose={()=>setEditV(null)} wide>
           <h3 style={{marginBottom:12}}>Editar descriptivo · {editV.id}</h3>
-          <VacanteForm inicial={editV.req} saveLabel="Guardar y reenviar al formador"
-            onSave={(req)=>{run(d=>ACT.editarVacante(d,editV.id,req)); setEditV(null); toast("Descriptivo actualizado · el formador fue notificado");}}/>
+          <VacanteForm inicial={editV.req} cambios={editV.cambios} saveLabel="Guardar y reenviar al formador"
+            onSave={(req,rech)=>{run(d=>ACT.editarVacante(d,editV.id,req,rech)); setEditV(null); toast("Descriptivo actualizado · el formador fue notificado");}}/>
         </Modal>
       )}
     </div>
