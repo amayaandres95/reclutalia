@@ -988,10 +988,12 @@ const ACT={
     notify(db,{tipo:"formador",id:formadorId},"Se te liberó una nueva vacante",`La vacante ${v.id} · "${req.titulo}" fue asignada a ti. Revisa el descriptivo, solicita cambios o apruébala para iniciar la búsqueda.`,v.id);
     return v.id;
   },
-  /* Batch 6 (A8): al reenviar, registra qué campos se aplicaron y cuáles se rechazaron */
-  editarVacante(db, vacId, req, rechazados=[]){
+  /* Batch 6 (A8): al reenviar, registra qué campos se aplicaron y cuáles se rechazaron.
+     nota = comentario general opcional del administrador; queda en v.historial (visible para ambos). */
+  editarVacante(db, vacId, req, rechazados=[], nota=""){
     const v=db.vacantes.find(x=>x.id===vacId); const prev=v.cambios; v.req=req;
-    if(v.estado==="cambios"){
+    const eraCambios=v.estado==="cambios";
+    if(eraCambios){
       v.estado="asignada"; v.cambios=null;
       const nom=(ks)=>ks.map(k=>CAMPOS_DESC[k]||k).join(", ");
       let det="";
@@ -1002,7 +1004,10 @@ const ACT={
         det=(apl.length?`Cambios aplicados: ${nom(apl)}`:"Sin cambios aplicados")+(rech.length?` · Rechazados: ${nom(rech)}`:"");
       } else det="El administrador aplicó los cambios solicitados";
       v.historial.push(det+" · "+hoy());
-      notify(db,{tipo:"formador",id:v.formadorId},"Vacante actualizada",`El descriptivo de ${v.id} · "${req.titulo}" fue actualizado. ${det}. Revísalo y apruébalo para iniciar la búsqueda.`,v.id);
+      if(nota) v.historial.push(`Nota del administrador: "${nota}" · `+hoy());
+      notify(db,{tipo:"formador",id:v.formadorId},"Vacante actualizada",`El descriptivo de ${v.id} · "${req.titulo}" fue actualizado. ${det}.${nota?` Nota del administrador: "${nota}".`:""} Revísalo y apruébalo para iniciar la búsqueda.`,v.id);
+    } else if(nota){
+      v.historial.push(`Nota del administrador: "${nota}" · `+hoy());
     }
   },
   /* Batch 6 (F15): cambios = {campo:anotación} (por campo); un string legado sigue funcionando */
@@ -1402,23 +1407,28 @@ function CambiosResumen({cambios}){
 
 function VistaDescriptivo({v, cand, onAprobar, onCambios}){
   const [modo,setModo]=useState("ver");
-  const [cambiosMap,setCambiosMap]=useState({});
-  const [campoEdit,setCampoEdit]=useState(null);
+  const [cambiosMap,setCambiosMap]=useState({}); // {campo: anotación} — una entrada por campo anotado
   const r=v.req;
   const limpio=Object.fromEntries(Object.entries(cambiosMap).map(([k,a])=>[k,a.trim()]).filter(([,a])=>a));
   const nSol=Object.keys(limpio).length;
-  /* Solicitud de cambios por campo (Batch 6 · F15): en modo "cambios" cada Row con clave k muestra un lápiz.
-     El input de la anotación vive en la tarjeta superior (Row es un componente inline: un input adentro
-     perdería el foco en cada tecleo al re-montarse). */
+  /* Solicitud de cambios por campo (Batch 6 · F15): en modo "cambios" el lápiz de cada fila abre un
+     input propio bajo el campo; puede haber tantas anotaciones abiertas como se necesite y todas se
+     envían juntas. Row se INVOCA como función — {Row({...})} y no <Row/> — porque un componente
+     inline se re-monta en cada render y sus inputs perderían el foco en cada tecleo. */
   const Row=({l,c,k})=>(
-    <div style={{marginBottom:10}}>
-      <label>{l}{modo==="cambios" && k && (
-        <button type="button" className={"lapiz"+(limpio[k]||campoEdit===k?" on":"")} title={"Solicitar cambio en: "+l}
-          onClick={()=>setCampoEdit(campoEdit===k?null:k)}><Edit3 size={12}/></button>
+    <div style={{marginBottom:10}} key={l}>
+      <label>{l}{modo==="cambios" && k && cambiosMap[k]===undefined && (
+        <button type="button" className="lapiz" title={"Solicitar cambio en: "+l}
+          onClick={()=>setCambiosMap(m=>({...m,[k]:""}))}><Edit3 size={12}/></button>
       )}</label>
       <div style={{fontSize:13.5}}>{c}</div>
-      {modo==="cambios" && k && limpio[k] && (
-        <div className="anot"><Edit3 size={13}/><span style={{flex:1}}>{limpio[k]}</span></div>
+      {modo==="cambios" && k && cambiosMap[k]!==undefined && (
+        <div style={{display:"flex",gap:6,marginTop:6,alignItems:"center"}}>
+          <input autoFocus placeholder="Describe el ajuste que necesitas en este campo…" style={{flex:1}}
+            value={cambiosMap[k]} onChange={e=>setCambiosMap(m=>({...m,[k]:e.target.value}))}/>
+          <button type="button" className="lapiz on" title="Quitar esta anotación"
+            onClick={()=>setCambiosMap(m=>{ const n={...m}; delete n[k]; return n; })}><X size={12}/></button>
+        </div>
       )}
     </div>
   );
@@ -1433,18 +1443,10 @@ function VistaDescriptivo({v, cand, onAprobar, onCambios}){
       {modo==="cambios" && (
         <div className="card" style={{background:"var(--gold-soft)",borderColor:"#F0D9A5",marginBottom:16}}>
           <b style={{fontSize:13.5}}><Edit3 size={14} style={{verticalAlign:-2}}/> Solicitud de cambios por campo</b>
-          <p style={{fontSize:13,marginTop:6}}>Usa el lápiz <Edit3 size={11} style={{verticalAlign:-1}}/> junto a cada campo para anotar el cambio que necesitas. Las anotaciones se acumulan y se envían juntas al administrador.</p>
-          {campoEdit && (
-            <div className="field" style={{marginTop:10,marginBottom:0}}>
-              <label>Cambio solicitado en: {CAMPOS_DESC[campoEdit]||campoEdit}</label>
-              <input key={campoEdit} autoFocus placeholder="Describe el ajuste que necesitas en este campo…"
-                value={cambiosMap[campoEdit]||""} onChange={e=>setCambiosMap(m=>({...m,[campoEdit]:e.target.value}))}
-                onKeyDown={e=>{ if(e.key==="Enter") setCampoEdit(null); }}/>
-            </div>
-          )}
+          <p style={{fontSize:13,marginTop:6}}>Usa el lápiz <Edit3 size={11} style={{verticalAlign:-1}}/> junto a cada campo para abrir su anotación; puedes anotar <b>tantos campos como necesites</b> (cada anotación queda abierta bajo su campo). Al terminar, envía todas las solicitudes juntas a revisión del administrador.</p>
           <div style={{display:"flex",gap:8,marginTop:10,alignItems:"center",flexWrap:"wrap"}}>
-            <button className="btn dark sm" disabled={nSol===0} onClick={()=>{onCambios(limpio); setModo("ver"); setCambiosMap({}); setCampoEdit(null);}}><Send size={13}/> Enviar solicitud ({nSol} campo{nSol===1?"":"s"})</button>
-            <button className="btn ghost sm" onClick={()=>{setModo("ver"); setCambiosMap({}); setCampoEdit(null);}}>Cancelar</button>
+            <button className="btn dark sm" disabled={nSol===0} onClick={()=>{onCambios(limpio); setModo("ver"); setCambiosMap({});}}><Send size={13}/> Enviar a revisión ({nSol} campo{nSol===1?"":"s"} anotado{nSol===1?"":"s"})</button>
+            <button className="btn ghost sm" onClick={()=>{setModo("ver"); setCambiosMap({});}}>Cancelar</button>
             {nSol===0 && <span className="help">Anota al menos un campo para poder enviar.</span>}
           </div>
         </div>
@@ -1458,30 +1460,30 @@ function VistaDescriptivo({v, cand, onAprobar, onCambios}){
       )}
       <div className="grid2">
         <div>
-          <Row l="Puesto" k="titulo" c={<b>{r.titulo}</b>}/>
-          <Row l="Descripción" k="descripcion" c={r.descripcion}/>
-          <Row l="Especialidades requeridas" k="espRequeridas" c={<div className="tagpick">{r.espRequeridas.map(e=><span key={e} className="chip gold">{e}</span>)}</div>}/>
-          {r.espOpcionales.length>0 && <Row l="Especialidades opcionales" k="espOpcionales" c={<div className="tagpick">{r.espOpcionales.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>}
-          <Row l="Habilidades técnicas" k="hardSkills" c={<div className="tagpick">{r.hardSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>
-          <Row l="Habilidades blandas" k="softSkills" c={<div className="tagpick">{r.softSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>
-          {r.aptitudes.length>0 && <Row l="Aptitudes a evaluar" k="aptitudes" c={<div className="tagpick">{r.aptitudes.map(e=><span key={e} className="chip">{e}</span>)}</div>}/>}
+          {Row({l:"Puesto", k:"titulo", c:<b>{r.titulo}</b>})}
+          {Row({l:"Descripción", k:"descripcion", c:r.descripcion})}
+          {Row({l:"Especialidades requeridas", k:"espRequeridas", c:<div className="tagpick">{r.espRequeridas.map(e=><span key={e} className="chip gold">{e}</span>)}</div>})}
+          {r.espOpcionales.length>0 && Row({l:"Especialidades opcionales", k:"espOpcionales", c:<div className="tagpick">{r.espOpcionales.map(e=><span key={e} className="chip">{e}</span>)}</div>})}
+          {Row({l:"Habilidades técnicas", k:"hardSkills", c:<div className="tagpick">{r.hardSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>})}
+          {Row({l:"Habilidades blandas", k:"softSkills", c:<div className="tagpick">{r.softSkills.map(e=><span key={e} className="chip">{e}</span>)}</div>})}
+          {r.aptitudes.length>0 && Row({l:"Aptitudes a evaluar", k:"aptitudes", c:<div className="tagpick">{r.aptitudes.map(e=><span key={e} className="chip">{e}</span>)}</div>})}
         </div>
         <div>
           <div className="grid2">
-            <Row l="Área" k="area" c={r.area}/><Row l="Nivel" k="nivelPuesto" c={r.nivelPuesto}/>
-            <Row l="Experiencia mínima" k="anosExp" c={r.expNoRelevante? "No relevante" : r.anosExp+" años"}/><Row l="Estudios" k="educacion" c={r.educacion+(r.puedeSerSuperior?" o superior":"")}/>
-            <Row l="Ubicación del trabajo" k="ubicacionTrabajo" c={r.ubicacionTrabajo}/><Row l="Modalidad" k="modalidad" c={r.modalidad}/>
-            <Row l="Horario" k="horario" c={r.horario}/><Row l="Días" k="dias" c={r.dias.join(", ")}/>
-            <Row l="Rango salarial" k="salario" c={money(r.salarioMin)+" – "+money(r.salarioMax)}/><Row l="Posiciones" k="numVacantes" c={r.numVacantes}/>
-            <Row l="Búsqueda de candidatos" k="radio" c={r.ubicacionNoRelevante? "Ubicación no relevante (sin restricción)" : `${r.ubicacionCandidato} · radio ${r.radioKm} km`}/>
-            <Row l="Edad preferida" k="edad" c={r.edadNoRelevante? "No relevante" : `${r.edadMin} – ${r.edadMax} años`}/>
-            {r.sede && <Row l="Sede" k="sede" c={`${r.tipoSede} · ${r.sede}`}/>}
-            {r.unidadNegocio && <Row l="Unidad de Negocio" k="unidadNegocio" c={r.unidadNegocio}/>}
-            <Row l="Tipo de vacante" k="tipoVacante" c={r.tipoVacante==="Confidencial"? <Chip tone="gold" icon={ShieldCheck}>Confidencial</Chip> : (r.tipoVacante||"Estándar")}/>
-            {r.examenMedico && <Row l="Examen médico" k="examenMedico" c={<Chip tone="gold" icon={ShieldCheck}>Requerido al candidato seleccionado</Chip>}/>}
+            {Row({l:"Área", k:"area", c:r.area})}{Row({l:"Nivel", k:"nivelPuesto", c:r.nivelPuesto})}
+            {Row({l:"Experiencia mínima", k:"anosExp", c:r.expNoRelevante? "No relevante" : r.anosExp+" años"})}{Row({l:"Estudios", k:"educacion", c:r.educacion+(r.puedeSerSuperior?" o superior":"")})}
+            {Row({l:"Ubicación del trabajo", k:"ubicacionTrabajo", c:r.ubicacionTrabajo})}{Row({l:"Modalidad", k:"modalidad", c:r.modalidad})}
+            {Row({l:"Horario", k:"horario", c:r.horario})}{Row({l:"Días", k:"dias", c:r.dias.join(", ")})}
+            {Row({l:"Rango salarial", k:"salario", c:money(r.salarioMin)+" – "+money(r.salarioMax)})}{Row({l:"Posiciones", k:"numVacantes", c:r.numVacantes})}
+            {Row({l:"Búsqueda de candidatos", k:"radio", c:r.ubicacionNoRelevante? "Ubicación no relevante (sin restricción)" : `${r.ubicacionCandidato} · radio ${r.radioKm} km`})}
+            {Row({l:"Edad preferida", k:"edad", c:r.edadNoRelevante? "No relevante" : `${r.edadMin} – ${r.edadMax} años`})}
+            {r.sede && Row({l:"Sede", k:"sede", c:`${r.tipoSede} · ${r.sede}`})}
+            {r.unidadNegocio && Row({l:"Unidad de Negocio", k:"unidadNegocio", c:r.unidadNegocio})}
+            {Row({l:"Tipo de vacante", k:"tipoVacante", c:r.tipoVacante==="Confidencial"? <Chip tone="gold" icon={ShieldCheck}>Confidencial</Chip> : (r.tipoVacante||"Estándar")})}
+            {r.examenMedico && Row({l:"Examen médico", k:"examenMedico", c:<Chip tone="gold" icon={ShieldCheck}>Requerido al candidato seleccionado</Chip>})}
           </div>
-          {r.killer.length>0 && <Row l="Preguntas filtro (killer questions)" k="killer" c={r.killer.map((k,i)=><div key={i} style={{fontSize:13,marginTop:4}}>• {k.q}</div>)}/>}
-          <Row l="Historial" c={v.historial.map((h,i)=><div key={i} className="help">• {h}</div>)}/>
+          {r.killer.length>0 && Row({l:"Preguntas filtro (killer questions)", k:"killer", c:r.killer.map((q,i)=><div key={i} style={{fontSize:13,marginTop:4}}>• {q.q}</div>)})}
+          {Row({l:"Historial", c:v.historial.map((h,i)=><div key={i} className="help">• {h}</div>)})}
         </div>
       </div>
       {(v.estado==="asignada") && modo==="ver" && (
@@ -2941,6 +2943,9 @@ function AdminPanel({db, run, toast, vista, setVista}){
   const [editC,setEditC]=useState(undefined);
   const [formadorSel,setFormadorSel]=useState(FORMADORES[0].id);
   const [q,setQ]=useState("");
+  /* Popup de nota al reenviar (Batch 6 · A8): {req, rech} pendientes de confirmar */
+  const [confirmSave,setConfirmSave]=useState(null);
+  const [nota,setNota]=useState("");
   if(vista==="nueva") return (
     <div className="card">
       <h3 style={{marginBottom:4}}>Nueva vacante · formulario estandarizado</h3>
@@ -3012,9 +3017,27 @@ function AdminPanel({db, run, toast, vista, setVista}){
       ))}
       {editV && (
         <Modal onClose={()=>setEditV(null)} wide>
-          <h3 style={{marginBottom:12}}>Editar descriptivo · {editV.id}</h3>
+          <h3 style={{marginBottom:8}}>Editar descriptivo · {editV.id}</h3>
+          {editV.historial.length>0 && (
+            <div style={{maxHeight:110,overflowY:"auto",border:"1px solid var(--line)",borderRadius:10,padding:"8px 12px",marginBottom:12}}>
+              <label>Historial del descriptivo</label>
+              {editV.historial.map((h,i)=><div key={i} className="help">• {h}</div>)}
+            </div>
+          )}
           <VacanteForm inicial={editV.req} cambios={editV.cambios} saveLabel="Guardar y reenviar al formador"
-            onSave={(req,rech)=>{run(d=>ACT.editarVacante(d,editV.id,req,rech)); setEditV(null); toast("Descriptivo actualizado · el formador fue notificado");}}/>
+            onSave={(req,rech)=>setConfirmSave({req,rech})}/>
+        </Modal>
+      )}
+      {confirmSave && (
+        <Modal onClose={()=>setConfirmSave(null)}>
+          <h3 style={{marginBottom:6}}>Reenviar descriptivo al formador</h3>
+          <p className="help" style={{marginBottom:14}}>Si lo requieres, agrega una nota o comentario sobre los ajustes realizados o rechazados. Quedará registrada en el historial del descriptivo, visible para ti y para el formador.</p>
+          <label>Nota o comentario (opcional)</label>
+          <textarea rows={3} value={nota} onChange={e=>setNota(e.target.value)} placeholder="p. ej. Ajusté el rango salarial al tabulador vigente; el radio de búsqueda no puede ampliarse por política interna…"/>
+          <div style={{display:"flex",gap:8,marginTop:14}}>
+            <button className="btn gold" onClick={()=>{ run(d=>ACT.editarVacante(d,editV.id,confirmSave.req,confirmSave.rech,nota.trim())); setConfirmSave(null); setEditV(null); setNota(""); toast("Descriptivo actualizado · el formador fue notificado"); }}><Send size={15}/> Guardar y reenviar</button>
+            <button className="btn ghost" onClick={()=>setConfirmSave(null)}>Volver al formulario</button>
+          </div>
         </Modal>
       )}
     </div>
