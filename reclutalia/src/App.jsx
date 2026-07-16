@@ -116,6 +116,8 @@ button.fase-sub.on{background:var(--ink);border-color:var(--ink);color:#fff;}
 .notif.unread{background:var(--gold-soft);border-color:#F0D9A5;}
 .notif+.notif{margin-top:8px;}
 .check-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px dashed var(--line);border-radius:11px;}
+.chk-inline{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink2);margin-top:6px;cursor:pointer;}
+.chk-inline input{width:auto;margin:0;}
 .check-item.done{border-style:solid;background:var(--ok-soft);border-color:#BBDFC6;}
 .check-item+.check-item{margin-top:9px;}
 .stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
@@ -179,6 +181,14 @@ const NIVELES = ["Practicante","Junior","Semi-Senior","Senior","Gerente","Direct
 const EDUCACION = ["Bachillerato","Técnico Superior","Licenciatura trunca","Licenciatura titulado","Maestría","Doctorado"];
 const CIUDADES = ["CDMX","Monterrey","Guadalajara","Puebla","Querétaro","Tijuana","Mérida","Toluca","León"];
 const MODALIDADES = ["Presencial","Híbrido","Remoto"];
+/* Tipo de sede y sedes simuladas (Batch 5 · A2) — 5 opciones fijas por tipo, siempre las mismas */
+const TIPOS_SEDE = ["Corporativo","Sucursal"];
+const SEDES = {
+  Corporativo:["Corporativo Insurgentes Sur (CDMX)","Corporativo Reforma 222 (CDMX)","Corporativo Santa Fe (CDMX)","Corporativo Valle Oriente (MTY)","Corporativo Providencia (GDL)"],
+  Sucursal:["Sucursal Centro Histórico (CDMX)","Sucursal Coapa (CDMX)","Sucursal Cumbres (MTY)","Sucursal Chapultepec (GDL)","Sucursal Angelópolis (PUE)"],
+};
+/* Tipo de vacante (Batch 5 · A4) — opción única */
+const TIPOS_VACANTE = ["Estándar","Preventiva","Proactiva","Confidencial"];
 const ESPECIALIDADES = ["Ventas B2C","Ventas B2B","Desarrollo Frontend","Desarrollo Backend","Ciencia de Datos","Business Intelligence","Marketing Digital","CRM y Fidelización","Contabilidad","Planeación Financiera","Atracción de Talento","Capacitación","Logística","Cadena de Suministro","Servicio al Cliente","Cobranza","Derecho Corporativo","Cumplimiento (Compliance)","Gestión de Producto","UX/UI","Ciberseguridad","Infraestructura TI"];
 const HARD_SKILLS = ["Excel avanzado","SQL","Python","Power BI","Tableau","React","Node.js","SAP","Salesforce","CRM","Google Ads","Meta Ads","SEO","Contabilidad NIF","Modelado financiero","Nómina","LMS","Zendesk","AutoCAD","Scrum","Figma","Redes Cisco","Inglés avanzado","Negociación comercial","Prospección en frío"];
 const SOFT_SKILLS = ["Comunicación efectiva","Liderazgo","Trabajo en equipo","Orientación a resultados","Adaptabilidad","Pensamiento analítico","Empatía","Negociación","Atención al detalle","Gestión del tiempo","Resolución de conflictos","Proactividad"];
@@ -288,7 +298,12 @@ const mkReq = (o)=>({
   espRequeridas:[], espOpcionales:[], hardSkills:[], softSkills:[], aptitudes:[],
   killer:[], ubicacionTrabajo:"CDMX", modalidad:"Presencial", ubicacionCandidato:"CDMX", radioKm:25,
   salarioMin:10000, salarioMax:20000, horario:"9:00 – 18:00", dias:["Lun","Mar","Mié","Jue","Vie"], numVacantes:1,
-  examenMedico:false, ...o });
+  examenMedico:false,
+  // Batch 5 (A2–A5): sede, unidad de negocio, tipo de vacante, flags "no relevante" y edad preferida.
+  // Defaults inofensivos: nada de esto afecta matchScore salvo ubicacionNoRelevante (puntaje completo de distancia).
+  tipoSede:"Corporativo", sede:"", unidadNegocio:"", tipoVacante:"Estándar",
+  puedeSerSuperior:false, ubicacionNoRelevante:false, expNoRelevante:false,
+  edadMin:18, edadMax:65, edadNoRelevante:false, ...o });
 
 const SEED_VACANTES = [
   { id:"V-1042", estado:"asignada", formadorId:"F1", creada:"01 jul 2026", pipeline:{}, historial:[], cambios:null, archivados:[],
@@ -299,7 +314,8 @@ const SEED_VACANTES = [
       aptitudes:["Orientación al servicio","Tolerancia a la presión"],
       killer:[{q:"¿Cuentas con disponibilidad para laborar sábados medio día?"},{q:"¿Tienes al menos 2 años de experiencia en venta de productos financieros o intangibles?"}],
       ubicacionTrabajo:"CDMX", modalidad:"Híbrido", ubicacionCandidato:"CDMX", radioKm:30,
-      salarioMin:14000, salarioMax:19000, horario:"9:00 – 18:00", numVacantes:2 }) },
+      salarioMin:14000, salarioMax:19000, horario:"9:00 – 18:00", numVacantes:2,
+      tipoSede:"Corporativo", sede:"Corporativo Insurgentes Sur (CDMX)", unidadNegocio:"Ventas Digitales · Banca de Consumo", edadMin:22, edadMax:45 }) },
   { id:"V-1038", estado:"abierta", formadorId:"F1", creada:"24 jun 2026", pipeline:{}, historial:["Aprobada por el formador el 26 jun 2026"], cambios:null, archivados:[],
     req: mkReq({ titulo:"Coordinador de Atención a Clientes", area:"Atención a Clientes",
       descripcion:"Liderar una célula de 20 agentes de atención omnicanal, asegurando niveles de servicio, calidad y coaching continuo al equipo.",
@@ -308,7 +324,8 @@ const SEED_VACANTES = [
       aptitudes:["Orientación al servicio","Liderazgo de equipos"],
       killer:[{q:"¿Has liderado equipos de 10 o más personas?"}],
       ubicacionTrabajo:"CDMX", modalidad:"Presencial", ubicacionCandidato:"CDMX", radioKm:40,
-      salarioMin:17000, salarioMax:22000, horario:"8:00 – 17:00", numVacantes:1, examenMedico:true }) },
+      salarioMin:17000, salarioMax:22000, horario:"8:00 – 17:00", numVacantes:1, examenMedico:true,
+      tipoSede:"Sucursal", sede:"Sucursal Centro Histórico (CDMX)", unidadNegocio:"Atención Omnicanal", edadMin:25, edadMax:50 }) },
   { id:"V-1035", estado:"abierta", formadorId:"F2", creada:"18 jun 2026", pipeline:{}, historial:["Aprobada por el formador el 19 jun 2026"], cambios:null, archivados:[],
     req: mkReq({ titulo:"Analista de Datos Sr", area:"Datos y Analítica",
       descripcion:"Construcción de modelos analíticos y tableros para la dirección de crédito. Trabajo cercano con negocio para traducir preguntas en datos.",
@@ -317,7 +334,8 @@ const SEED_VACANTES = [
       aptitudes:["Razonamiento numérico","Razonamiento lógico"],
       killer:[{q:"¿Dominas SQL a nivel avanzado (ventanas, CTEs, optimización)?"}],
       ubicacionTrabajo:"CDMX", modalidad:"Híbrido", ubicacionCandidato:"CDMX", radioKm:50,
-      salarioMin:35000, salarioMax:45000, horario:"9:00 – 18:00", numVacantes:1 }) },
+      salarioMin:35000, salarioMax:45000, horario:"9:00 – 18:00", numVacantes:1,
+      tipoSede:"Corporativo", sede:"Corporativo Santa Fe (CDMX)", unidadNegocio:"Dirección de Crédito", edadNoRelevante:true }) },
 ];
 
 /* ============================== UTILIDADES ============================== */
@@ -367,7 +385,8 @@ function matchScore(c, req){
   s += ni===nr?12 : Math.abs(ni-nr)===1?7:1;
   s += c.exp>=req.anosExp?8 : (c.exp/Math.max(req.anosExp,1))*5;
   const d=distKm(req.ubicacionCandidato,c.ciudad);
-  s += (req.modalidad==="Remoto"||c.modalidad==="Remoto")?7 : d<=req.radioKm?7 : d<=req.radioKm*4?3:0;
+  /* "Ubicación no relevante" (Batch 5 · A5): el componente de distancia otorga puntaje completo */
+  s += req.ubicacionNoRelevante?7 : (req.modalidad==="Remoto"||c.modalidad==="Remoto")?7 : d<=req.radioKm?7 : d<=req.radioKm*4?3:0;
   if(c.modalidad===req.modalidad||req.modalidad==="Remoto") s+=3;
   s += ((c.id*37)%7)-3; // variación determinística leve
   return Math.max(0,Math.min(98,Math.round(s)));
@@ -1164,6 +1183,30 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
   const [kq,setKq]=useState("");
   const SECS=["1 · El puesto","2 · Perfil del candidato","3 · Preguntas filtro","4 · Condiciones"];
   const valido = r.titulo.trim() && r.descripcion.trim() && r.espRequeridas.length>0 && r.hardSkills.length>0;
+  /* Validación por sección (Batch 5 · A7): "Siguiente" se bloquea hasta completar los obligatorios;
+     los checkboxes "no relevante" cuentan como campo satisfecho. */
+  const faltanSec=(s)=>{
+    const f=[];
+    if(s===0){
+      if(!r.titulo.trim()) f.push("título del puesto");
+      if(!r.descripcion.trim()) f.push("descripción");
+      if(!r.sede) f.push("sede");
+      if(!r.unidadNegocio.trim()) f.push("unidad de negocio");
+    }
+    if(s===1){
+      if(!r.espRequeridas.length) f.push("especialidades requeridas");
+      if(!r.hardSkills.length) f.push("habilidades técnicas");
+      if(!r.edadNoRelevante && !(r.edadMin>=18 && r.edadMax>=r.edadMin)) f.push('rango de edad válido (o marca "Edad no relevante")');
+    }
+    if(s===3){
+      if(!r.horario.trim()) f.push("horario");
+      if(!r.dias.length) f.push("días de trabajo");
+      if(!(r.salarioMin>0 && r.salarioMax>=r.salarioMin)) f.push("rango salarial válido");
+    }
+    return f;
+  };
+  const faltan=faltanSec(sec);
+  const faltanTodas=[0,1,2,3].flatMap(faltanSec);
   return (
     <div>
       {extraTop}
@@ -1181,19 +1224,48 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
           <div className="field"><label>Número de posiciones</label><input type="number" min="1" value={r.numVacantes} onChange={e=>set("numVacantes",+e.target.value)}/></div>
           <div className="field"><label>Ubicación del trabajo</label><select value={r.ubicacionTrabajo} onChange={e=>set("ubicacionTrabajo",e.target.value)}>{CIUDADES.map(a=><option key={a}>{a}</option>)}</select></div>
         </div>
+        <div className="grid3">
+          <div className="field"><label>Tipo de sede *</label>
+            <select value={r.tipoSede} onChange={e=>setR(x=>({...x,tipoSede:e.target.value,sede:""}))}>{TIPOS_SEDE.map(t=><option key={t}>{t}</option>)}</select></div>
+          <div className="field"><label>Sede *</label>
+            <select value={r.sede} onChange={e=>set("sede",e.target.value)}>
+              <option value="">Selecciona la sede…</option>
+              {SEDES[r.tipoSede].map(s=><option key={s}>{s}</option>)}
+            </select></div>
+          <div className="field"><label>Unidad de Negocio *</label><input value={r.unidadNegocio} onChange={e=>set("unidadNegocio",e.target.value)} placeholder="p. ej. Banca Digital, Retail Centro…"/></div>
+        </div>
+        <div className="field"><label>Tipo de vacante</label>
+          <div className="tagpick">{TIPOS_VACANTE.map(t=><button type="button" key={t} className={"tag"+(r.tipoVacante===t?" on":"")} onClick={()=>set("tipoVacante",t)}>{t}</button>)}</div>
+          {r.tipoVacante==="Confidencial" && <div className="help">Se mostrará con un chip "Confidencial" al administrador y al formador.</div>}
+        </div>
       </div>}
 
       {sec===1 && <div>
         <div className="grid3">
-          <div className="field"><label>Años de experiencia mínimos</label><input type="number" min="0" value={r.anosExp} onChange={e=>set("anosExp",+e.target.value)}/></div>
-          <div className="field"><label>Nivel de estudios</label><select value={r.educacion} onChange={e=>set("educacion",e.target.value)}>{EDUCACION.map(a=><option key={a}>{a}</option>)}</select></div>
+          <div className="field"><label>Años de experiencia mínimos</label>
+            <input type="number" min="0" value={r.anosExp} onChange={e=>set("anosExp",+e.target.value)} disabled={r.expNoRelevante}/>
+            <label className="chk-inline"><input type="checkbox" checked={r.expNoRelevante} onChange={e=>set("expNoRelevante",e.target.checked)}/> No relevante</label>
+          </div>
+          <div className="field"><label>Nivel de estudios</label>
+            <select value={r.educacion} onChange={e=>set("educacion",e.target.value)}>{EDUCACION.map(a=><option key={a}>{a}</option>)}</select>
+            <label className="chk-inline"><input type="checkbox" checked={r.puedeSerSuperior} onChange={e=>set("puedeSerSuperior",e.target.checked)}/> Puede ser superior</label>
+          </div>
           <div className="field"><label>Radio de búsqueda del candidato</label>
             <div style={{display:"flex",gap:8}}>
-              <select value={r.ubicacionCandidato} onChange={e=>set("ubicacionCandidato",e.target.value)} style={{flex:1}}>{CIUDADES.map(a=><option key={a}>{a}</option>)}</select>
-              <select value={r.radioKm} onChange={e=>set("radioKm",+e.target.value)} style={{width:110}}>{[10,25,30,40,50,100,300].map(k=><option key={k} value={k}>{k} km</option>)}</select>
+              <select value={r.ubicacionCandidato} onChange={e=>set("ubicacionCandidato",e.target.value)} style={{flex:1}} disabled={r.ubicacionNoRelevante}>{CIUDADES.map(a=><option key={a}>{a}</option>)}</select>
+              <select value={r.radioKm} onChange={e=>set("radioKm",+e.target.value)} style={{width:110}} disabled={r.ubicacionNoRelevante}>{[10,25,30,40,50,100,300].map(k=><option key={k} value={k}>{k} km</option>)}</select>
             </div>
-            <div className="help">La IA prioriza candidatos dentro de este radio.</div>
+            <label className="chk-inline"><input type="checkbox" checked={r.ubicacionNoRelevante} onChange={e=>set("ubicacionNoRelevante",e.target.checked)}/> Ubicación no relevante</label>
+            <div className="help">{r.ubicacionNoRelevante?"La IA no restringirá por ubicación: todos los candidatos reciben el puntaje completo de distancia.":"La IA prioriza candidatos dentro de este radio."}</div>
           </div>
+        </div>
+        <div className="field" style={{maxWidth:420}}><label>Rango de edad preferida</label>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <input type="number" min="18" max="99" value={r.edadMin} onChange={e=>set("edadMin",+e.target.value)} disabled={r.edadNoRelevante}/><span>a</span>
+            <input type="number" min="18" max="99" value={r.edadMax} onChange={e=>set("edadMax",+e.target.value)} disabled={r.edadNoRelevante}/><span>años</span>
+          </div>
+          <label className="chk-inline"><input type="checkbox" checked={r.edadNoRelevante} onChange={e=>set("edadNoRelevante",e.target.checked)}/> Edad no relevante</label>
+          <div className="help">Referencia para el equipo de reclutamiento; la edad NO afecta el ranking de compatibilidad de la IA.</div>
         </div>
         <div className="field"><label>Especialidades requeridas * <span style={{fontWeight:400,color:"var(--gray)"}}>(selección múltiple)</span></label>
           <TagPicker options={ESPECIALIDADES} value={r.espRequeridas} onChange={v=>set("espRequeridas",v)} addNew/></div>
@@ -1202,9 +1274,9 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
         <div className="field"><label>Habilidades duras / técnicas requeridas *</label>
           <TagPicker options={HARD_SKILLS} value={r.hardSkills} onChange={v=>set("hardSkills",v)} addNew/></div>
         <div className="field"><label>Habilidades blandas requeridas</label>
-          <TagPicker options={SOFT_SKILLS} value={r.softSkills} onChange={v=>set("softSkills",v)}/></div>
+          <TagPicker options={SOFT_SKILLS} value={r.softSkills} onChange={v=>set("softSkills",v)} addNew/></div>
         <div className="field"><label>Aptitudes a evaluar</label>
-          <TagPicker options={APTITUDES} value={r.aptitudes} onChange={v=>set("aptitudes",v)}/></div>
+          <TagPicker options={APTITUDES} value={r.aptitudes} onChange={v=>set("aptitudes",v)} addNew/></div>
       </div>}
 
       {sec===2 && <div>
@@ -1249,11 +1321,12 @@ function VacanteForm({inicial, onSave, saveLabel="Guardar vacante", extraTop}){
         </div>
       </div>}
 
-      <div style={{display:"flex",gap:10,marginTop:18,alignItems:"center"}}>
+      <div style={{display:"flex",gap:10,marginTop:18,alignItems:"center",flexWrap:"wrap"}}>
         {sec>0 && <button className="btn ghost" onClick={()=>setSec(sec-1)}>Anterior</button>}
-        {sec<3 && <button className="btn dark" onClick={()=>setSec(sec+1)}>Siguiente <ChevronRight size={15}/></button>}
-        {sec===3 && <button className="btn gold" disabled={!valido} onClick={()=>onSave(r)}><CheckCircle2 size={15}/> {saveLabel}</button>}
-        {!valido && sec===3 && <span className="help">Faltan campos obligatorios: título, descripción, especialidades y habilidades técnicas.</span>}
+        {sec<3 && <button className="btn dark" disabled={faltan.length>0} onClick={()=>setSec(sec+1)}>Siguiente <ChevronRight size={15}/></button>}
+        {sec===3 && <button className="btn gold" disabled={!valido||faltanTodas.length>0} onClick={()=>onSave(r)}><CheckCircle2 size={15}/> {saveLabel}</button>}
+        {faltan.length>0 && <span className="help" style={{color:"var(--bad)"}}><AlertCircle size={12} style={{verticalAlign:-2}}/> Para continuar completa: {faltan.join(", ")}.</span>}
+        {sec===3 && faltan.length===0 && faltanTodas.length>0 && <span className="help" style={{color:"var(--bad)"}}><AlertCircle size={12} style={{verticalAlign:-2}}/> Faltan campos en otras secciones: {[...new Set(faltanTodas)].join(", ")}.</span>}
       </div>
     </div>
   );
@@ -1293,11 +1366,15 @@ function VistaDescriptivo({v, cand, onAprobar, onCambios}){
         <div>
           <div className="grid2">
             <Row l="Área" c={r.area}/><Row l="Nivel" c={r.nivelPuesto}/>
-            <Row l="Experiencia mínima" c={r.anosExp+" años"}/><Row l="Estudios" c={r.educacion}/>
+            <Row l="Experiencia mínima" c={r.expNoRelevante? "No relevante" : r.anosExp+" años"}/><Row l="Estudios" c={r.educacion+(r.puedeSerSuperior?" o superior":"")}/>
             <Row l="Ubicación del trabajo" c={r.ubicacionTrabajo}/><Row l="Modalidad" c={r.modalidad}/>
             <Row l="Horario" c={r.horario}/><Row l="Días" c={r.dias.join(", ")}/>
             <Row l="Rango salarial" c={money(r.salarioMin)+" – "+money(r.salarioMax)}/><Row l="Posiciones" c={r.numVacantes}/>
-            <Row l="Búsqueda de candidatos" c={`${r.ubicacionCandidato} · radio ${r.radioKm} km`}/>
+            <Row l="Búsqueda de candidatos" c={r.ubicacionNoRelevante? "Ubicación no relevante (sin restricción)" : `${r.ubicacionCandidato} · radio ${r.radioKm} km`}/>
+            <Row l="Edad preferida" c={r.edadNoRelevante? "No relevante" : `${r.edadMin} – ${r.edadMax} años`}/>
+            {r.sede && <Row l="Sede" c={`${r.tipoSede} · ${r.sede}`}/>}
+            {r.unidadNegocio && <Row l="Unidad de Negocio" c={r.unidadNegocio}/>}
+            <Row l="Tipo de vacante" c={r.tipoVacante==="Confidencial"? <Chip tone="gold" icon={ShieldCheck}>Confidencial</Chip> : (r.tipoVacante||"Estándar")}/>
             {r.examenMedico && <Row l="Examen médico" c={<Chip tone="gold" icon={ShieldCheck}>Requerido al candidato seleccionado</Chip>}/>}
           </div>
           {r.killer.length>0 && <Row l="Preguntas filtro (killer questions)" c={r.killer.map((k,i)=><div key={i} style={{fontSize:13,marginTop:4}}>• {k.q}</div>)}/>}
@@ -1718,6 +1795,7 @@ function VacanteDetail({db, v, run, toast}){
             <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
               <h2 style={{fontSize:19}}>{v.req.titulo}</h2>
               <Chip>{v.id}</Chip>
+              {v.req.tipoVacante==="Confidencial"&&<Chip tone="gold" icon={ShieldCheck}>Confidencial</Chip>}
               {v.estado==="asignada"&&<Chip tone="gold">Pendiente de tu aprobación</Chip>}
               {v.estado==="cambios"&&<Chip>Esperando cambios del admin</Chip>}
               {v.estado==="abierta"&&(candidatoElegido(v)?<Chip tone="ok" icon={CheckCircle2}>Candidato elegido</Chip>:<Chip tone="ok">Búsqueda activa</Chip>)}
@@ -2565,10 +2643,12 @@ function DetalleVacanteModal({v, cand, p, onAplicar, onClose}){
         <div>
           <div className="grid2">
             <Row l="Área" c={r.area}/><Row l="Nivel" c={r.nivelPuesto}/>
-            <Row l="Experiencia mínima" c={r.anosExp+" años"}/><Row l="Estudios" c={r.educacion}/>
+            <Row l="Experiencia mínima" c={r.expNoRelevante? "No relevante" : r.anosExp+" años"}/><Row l="Estudios" c={r.educacion+(r.puedeSerSuperior?" o superior":"")}/>
             <Row l="Ubicación del trabajo" c={r.ubicacionTrabajo}/><Row l="Modalidad" c={r.modalidad}/>
             <Row l="Horario" c={r.horario}/><Row l="Días" c={r.dias.join(", ")}/>
             <Row l="Rango salarial" c={money(r.salarioMin)+" – "+money(r.salarioMax)}/><Row l="Posiciones" c={r.numVacantes}/>
+            {r.sede && <Row l="Sede" c={`${r.tipoSede} · ${r.sede}`}/>}
+            {r.unidadNegocio && <Row l="Unidad de Negocio" c={r.unidadNegocio}/>}
           </div>
           {r.examenMedico && <Row l="Examen médico" c={<Chip tone="gold" icon={ShieldCheck}>Requerido al ser seleccionado(a)</Chip>}/>}
         </div>
@@ -2806,6 +2886,7 @@ function AdminPanel({db, run, toast, vista, setVista}){
         <div className={"card"+(v.estado==="cerrada"?" ok":"")} key={v.id} style={{marginBottom:12}}>
           <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
             <b>{v.req.titulo}</b><Chip>{v.id}</Chip>
+            {v.req.tipoVacante==="Confidencial"&&<Chip tone="gold" icon={ShieldCheck}>Confidencial</Chip>}
             <Chip icon={User}>Formador: {db.formadores.find(f=>f.id===v.formadorId)?.nombre||"—"}</Chip>
             {v.estado==="asignada"&&<Chip tone="gold">En revisión del formador</Chip>}
             {v.estado==="cambios"&&<Chip tone="bad" icon={AlertCircle}>Cambios solicitados</Chip>}
