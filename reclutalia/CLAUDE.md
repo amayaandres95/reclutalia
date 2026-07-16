@@ -208,13 +208,17 @@ ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana pa
 - **Solicitud de cambios por campo (Batch 6 · F15/A8):** `v.cambios` ahora es un objeto
   `{campo:anotación}` con claves del catálogo `CAMPOS_DESC` (un string legado sigue soportado;
   `CambiosResumen` pinta ambos formatos). **Formador:** en `VistaDescriptivo`, "Solicitar cambios"
-  activa un lápiz (`.lapiz`) por campo; el editor de anotación vive en la tarjeta superior (un input
-  dentro del Row inline perdería el foco al re-montarse); las anotaciones se acumulan y
-  `ACT.solicitarCambios(db,vacId,cambios)` las envía juntas. **Admin:** `VacanteForm` acepta prop
-  `cambios` → cada campo solicitado muestra caja `.anot` (ámbar + AlertCircle) con botón "Rechazar
-  cambio"/"Reconsiderar"; `onSave(req,rechazados)` → `ACT.editarVacante(db,vacId,req,rechazados)`
-  registra en `v.historial` "Cambios aplicados: … · Rechazados: …" y lo notifica al formador
-  (aplicados = solicitados − rechazados, sin comparar valores). **Extras:** `tabInicial(v)` —
+  activa un lápiz (`.lapiz`) por campo que abre un input propio bajo el campo (X para quitarlo);
+  puede haber tantas anotaciones abiertas como se quiera y "**Enviar a revisión** (n campos)" las
+  manda juntas vía `ACT.solicitarCambios(db,vacId,cambios)`. ⚠️ Las filas se pintan con
+  `{Row({...})}` (invocación de función, NO `<Row/>`): un componente inline se re-monta en cada
+  render y sus inputs perderían el foco. **Admin:** `VacanteForm` acepta prop `cambios` → cada campo
+  solicitado muestra caja `.anot` (ámbar + AlertCircle) con botón "Rechazar cambio"/"Reconsiderar";
+  al guardar, `AdminPanel` muestra un **popup de nota opcional** (comentario general sobre lo
+  aplicado/rechazado) y llama `ACT.editarVacante(db,vacId,req,rechazados,nota)` — registra en
+  `v.historial` "Cambios aplicados: … · Rechazados: …" + `Nota del administrador: "…"` y lo notifica
+  al formador (aplicados = solicitados − rechazados, sin comparar valores). El modal de edición del
+  admin muestra el historial del descriptivo. **Extras:** `tabInicial(v)` —
   `VacanteDetail` abre en el sub-paso activo/pendiente del proceso, no en el pool;
   `ACT.recordarDocs(db,vacId,cid)` — botón "Enviar recordatorio de documentos" en "Selección y
   documentos" cuando el seleccionado tiene pendientes; las vacantes **Confidenciales no aparecen**
