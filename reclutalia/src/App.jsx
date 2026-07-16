@@ -218,7 +218,7 @@ const FASES = [
 
 /* Pipeline del candidato dentro de una vacante */
 const PIPE = ["Invitado","Postulado","Filtros OK","Video-IA","Ranqueado","Entrevista agendada","Entrevistado","Seleccionado","Documentación","Oferta","Contratado"];
-const PIPE_IDX = { invitado:0, postulado:1, filtros_ok:2, video_ia:3, evaluado:4, slots_enviados:5, agendado:5, entrevistado:6, seleccionado:7, docs_completos:8, oferta_enviada:9, oferta_aceptada:9, contratado:10, descartado:-1, filtrado:-1 };
+const PIPE_IDX = { invitado:0, postulado:1, filtros_ok:2, video_ia:3, evaluado:4, slots_enviados:5, agendado:5, entrevistado:6, seleccionado:7, docs_completos:8, oferta_enviada:9, oferta_aceptada:9, contratado:10, descartado:-1, filtrado:-1, rechazado:-1 };
 
 /* ============================== DATOS SEMILLA ============================== */
 const Cd = (id,nombre,tipo,area,puesto,nivel,exp,edu,ciudad,modalidad,salario,esp,hard,soft,resumen)=>(
@@ -579,7 +579,8 @@ function EstadoChip({estado, candView}){
     video_ia:["Video-IA en curso","ai"], evaluado:["Evaluado por IA","ai"], slots_enviados:["Esperando confirmación de horario",""],
     agendado:["Entrevista agendada","gold"], entrevistado:["Entrevistado","gold"], seleccionado:["Seleccionado","ok"],
     docs_completos:["Documentación completa","ok"], oferta_enviada:["Oferta enviada","gold"], oferta_aceptada:["Oferta aceptada","ok"],
-    contratado:["Contratado","ok"], descartado:["Descartado","bad"], filtrado:["No pasó filtros","bad"] };
+    contratado:["Contratado","ok"], descartado:["Descartado","bad"], filtrado:["No pasó filtros","bad"],
+    rechazado:["Invitación rechazada","bad"] };
   let [t,tone]=map[estado]||[estado,""];
   /* En vistas del candidato, un proceso descartado se comunica como "Cerrada" (la vacante concluyó) */
   if(candView && estado==="descartado") t="Cerrada";
@@ -1042,6 +1043,13 @@ const ACT={
     }
     p.estado="postulado"; p.historial.push("Se postuló y respondió preguntas filtro · "+hoy());
     notify(db,{tipo:"formador",id:v.formadorId},"Nuevo candidato postulado",`${db.candidatos.find(c=>c.id===cid).nombre} aceptó tu invitación y se postuló a ${v.id} · "${v.req.titulo}".`,v.id);
+  },
+  /* El candidato rechaza la invitación del formador */
+  rechazarInvitacion(db, vacId, cid, motivo){
+    const v=db.vacantes.find(x=>x.id===vacId); const p=pAct(v,cid);
+    p.estado="rechazado"; p.motivoRechazo=motivo||"";
+    p.historial.push("El candidato rechazó la invitación"+(motivo?`: "${motivo}"`:"")+" · "+hoy());
+    notify(db,{tipo:"formador",id:v.formadorId},"El candidato rechazó tu invitación",`${db.candidatos.find(c=>c.id===cid).nombre} declinó tu invitación a "${v.req.titulo}".`+(motivo?` Motivo: "${motivo}".`:"")+" Puedes invitar a otros candidatos desde tu pool de talento.",v.id);
   },
   /* El candidato aplica por su cuenta desde "Buscar vacantes" (sin invitación previa) */
   postularDirecto(db, vacId, cid, killersOk, mensaje){
@@ -1626,6 +1634,62 @@ function EntrevistaModal({cand, v, p, externa, onSave, onClose}){
   );
 }
 
+/* Grabación + resumen simulados de la video-entrevista con IA (primer filtro, antes del ranking).
+   Contenido preestablecido para ilustrar la función; no hay video real. */
+function VideoIAResumenModal({cand, v, p, onClose}){
+  const nombre=cand.nombre.split(" ")[0];
+  const preguntas=[
+    { q:"Preséntate: trayectoria, especialidad y lo que buscas en tu siguiente reto.",
+      a:`${nombre} resumió ${cand.exp} años en ${cand.esp[0]||cand.area}, con foco en ${cand.hard.slice(0,2).join(" y ")||"sus herramientas"}. Busca un rol con crecimiento y mayor responsabilidad.` },
+    { q:`Cuéntame un proyecto donde aplicaste ${v.req.hardSkills.slice(0,2).join(" y ")||"tus herramientas"}.`,
+      a:"Describió un caso concreto con resultados medibles y su rol específico dentro del equipo." },
+    { q:`¿Cómo describirías tu nivel en ${v.req.espRequeridas[0]||v.req.area}?`,
+      a:`Se ubicó en un nivel ${cand.nivel.toLowerCase()} y lo sustentó con un ejemplo de su experiencia.` },
+    { q:"Describe una situación difícil con un cliente o compañero y cómo la resolviste.",
+      a:`Mostró ${cand.soft[0]?.toLowerCase()||"comunicación efectiva"} y orientación a la solución.` },
+    { q:"¿Por qué te interesa esta posición y qué disponibilidad tienes?",
+      a:`Alineó su interés con la vacante "${v.req.titulo}" y confirmó disponibilidad para el esquema ${v.req.modalidad.toLowerCase()}.` },
+  ];
+  return (
+    <Modal onClose={onClose} wide>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+        <Video size={18} color="var(--ai)"/><h3>Entrevista con IA · {cand.nombre}</h3>
+        <span className="chip ai" style={{marginLeft:"auto"}}><Sparkles size={11}/> Primer filtro (simulado)</span>
+      </div>
+      {/* "Grabación" simulada */}
+      <div style={{background:"var(--ink)",borderRadius:14,height:180,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:10,marginBottom:6,position:"relative"}}>
+        <div style={{width:60,height:60,borderRadius:99,background:"var(--ai)",display:"flex",alignItems:"center",justifyContent:"center"}}><Bot size={30} color="#fff"/></div>
+        <span style={{color:"#C9C9C9",fontSize:12}}>Grabación de la video-entrevista · reproducción simulada</span>
+        <div style={{position:"absolute",bottom:12,left:14,right:14}}>
+          <div className="mini-pipe">{[...Array(10)].map((_,i)=><i key={i} className={i<3?"f":""} style={i<3?{background:"var(--ai)"}:{background:"#3A3A3A"}}/>)}</div>
+          <div style={{display:"flex",justifyContent:"space-between",color:"#8A8A8A",fontSize:10,marginTop:4}}><span>02:18</span><span>07:45</span></div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        <button className="btn ai sm"><Video size={13}/> Reproducir grabación</button>
+        <button className="btn ghost sm"><Download size={13}/> Descargar (demo)</button>
+      </div>
+      <div className="aibox" style={{marginBottom:12}}>
+        <div className="hd"><Sparkles size={14}/> Resumen de la IA</div>
+        <p style={{fontSize:13,lineHeight:1.55}}>{nombre} completó la video-entrevista automatizada como primer filtro. Sustentó {cand.exp} años de experiencia en {cand.esp[0]||cand.area} y dominio de {cand.hard.slice(0,2).join(" y ")||"sus herramientas"}. Comunicación clara y respuestas con ejemplos concretos. Perfil alineado con "{v.req.titulo}"; se recomienda avanzar a revisión para terna.</p>
+      </div>
+      <label>Transcripción de la sesión (extracto)</label>
+      <div style={{maxHeight:230,overflowY:"auto",marginTop:6}}>
+        {preguntas.map((pg,i)=>(
+          <div key={i} className="trow" style={{alignItems:"flex-start"}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12.5,fontWeight:700,color:"var(--ai)"}}><Bot size={12} style={{verticalAlign:-1}}/> IA: {pg.q}</div>
+              <div style={{fontSize:12.5,color:"var(--ink2)",marginTop:4}}><User size={12} style={{verticalAlign:-1}}/> {nombre}: {pg.a}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="help" style={{marginTop:10}}>Grabación, transcripción y resumen simulados para ilustrar el primer filtro con IA en este prototipo.</div>
+      <button className="btn ghost" style={{marginTop:12}} onClick={onClose}>Cerrar</button>
+    </Modal>
+  );
+}
+
 function OfertaTool({v, cand, p, onSend}){
   const sugerido=Math.min(v.req.salarioMax, Math.max(v.req.salarioMin, Math.round((cand.salario*0.6+((v.req.salarioMin+v.req.salarioMax)/2)*0.4)/500)*500));
   const [monto,setMonto]=useState(sugerido);
@@ -1817,6 +1881,7 @@ function VacanteDetail({db, v, run, toast}){
   const [agenda,setAgenda]=useState(false);
   const [entrevistando,setEntrevistando]=useState(null);
   const [confirmSel,setConfirmSel]=useState(null);
+  const [verVideoIA,setVerVideoIA]=useState(null); // {c,p} — grabación/resumen simulado de la video-entrevista IA
   /* Pool de talento (Batch 1): búsqueda IA, filtros, archivados, categorizar, compartir, solicitar más */
   const [buscando,setBuscando]=useState(false);
   const [fOpen,setFOpen]=useState(false);
@@ -2040,8 +2105,9 @@ function VacanteDetail({db, v, run, toast}){
                   <div style={{marginTop:6}}><EstadoChip estado={p.estado}/></div>
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
-                  <div style={{display:"flex",gap:6}}>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end"}}>
                     <button className="btn ghost sm" onClick={()=>setPerfil({c,match:p.matchIA||p.match})}>Ver detalles</button>
+                    <button className="btn ai sm" onClick={()=>setVerVideoIA({c,p})}><Video size={13}/> Ver entrevista IA</button>
                     <button className="btn ghost sm" onClick={()=>descargarCV(c)}><Download size={13}/> CV</button>
                     {p.estado==="evaluado" && (
                       <button className={"btn sm "+(selEnt.includes(cid)?"dark":"gold")}
@@ -2208,6 +2274,7 @@ function VacanteDetail({db, v, run, toast}){
         onSend={(msg)=>{run(d=>ACT.invitar(d,v.id,invitando.id,msg)); setInvitando(null); toast("Invitación enviada a "+invitando.nombre.split(" ")[0]);}}/>}
       {agenda && <AgendaModal v={v} cands={selEnt.map(cand)} onClose={()=>setAgenda(false)}
         onSend={(slots,mod)=>{run(d=>ACT.enviarSlots(d,v.id,selEnt,slots,mod)); setAgenda(false); setSelEnt([]); toast("Opciones de horario enviadas a los candidatos");}}/>}
+      {verVideoIA && <VideoIAResumenModal cand={verVideoIA.c} v={v} p={verVideoIA.p} onClose={()=>setVerVideoIA(null)}/>}
       {entrevistando && <EntrevistaModal cand={entrevistando.c} v={v} p={entrevistando.p} externa={entrevistando.externa} onClose={()=>setEntrevistando(null)}
         onSave={(data)=>{run(d=>ACT.registrarEntrevista(d,v.id,entrevistando.c.id,data)); setEntrevistando(null); toast("Entrevista guardada · ranking actualizado por la IA");}}/>}
       {confirmSel && (
@@ -2352,8 +2419,9 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
   const [filtro,setFiltro]=useState("todos");
   const [qrDe,setQrDe]=useState(null);       // vacId mostrando el QR de apertura de cuenta (Batch 5)
   const [cuentaDe,setCuentaDe]=useState(null); // vacId mostrando el modal de captura de número de cuenta
+  const [rechazarDe,setRechazarDe]=useState(null); // vacante cuya invitación se está por rechazar
   const procesos=db.vacantes.filter(v=>v.pipeline[cand.id]);
-  const esCerrado=(est)=> ["contratado","descartado","filtrado"].includes(est);
+  const esCerrado=(est)=> ["contratado","descartado","filtrado","rechazado"].includes(est);
   const cont={ todos:procesos.length,
     activos:procesos.filter(v=>!esCerrado(v.pipeline[cand.id].estado)).length,
     cerrados:procesos.filter(v=>esCerrado(v.pipeline[cand.id].estado)).length };
@@ -2403,7 +2471,7 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
               <Chip icon={MapPin}>{v.req.ubicacionTrabajo} · {v.req.modalidad}</Chip>
               <Chip icon={User}>Formador: {formador.nombre}</Chip>
             </div>
-            {!["descartado","filtrado"].includes(p.estado) &&
+            {!["descartado","filtrado","rechazado"].includes(p.estado) &&
               <div style={{margin:"10px 0 14px",maxWidth:560}}><MiniPipe estado={p.estado}/></div>}
 
             {p.estado==="invitado" && (<>
@@ -2411,7 +2479,8 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
                 <div className="hd"><Send size={14}/> Mensaje del formador</div>
                 <p style={{fontSize:13}}>"{p.mensaje}"</p>
               </div>
-              <PostulacionForm v={v} onAplicar={(ok)=>{ run(d=>ACT.aplicar(d,v.id,cand.id,ok)); toast(ok?"¡Postulación enviada!":"Gracias, registramos tus respuestas"); }}/>
+              <PostulacionForm v={v} onAplicar={(ok)=>{ run(d=>ACT.aplicar(d,v.id,cand.id,ok)); toast(ok?"¡Postulación enviada!":"Gracias, registramos tus respuestas"); }}
+                onRechazar={()=>setRechazarDe(v)}/>
             </>)}
 
             {["postulado","filtros_ok"].includes(p.estado) && (<>
@@ -2478,7 +2547,7 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
               )}
             </>)}
 
-            {p.estado==="evaluado" && <div className="chip ai"><Sparkles size={12}/> Video-entrevista completada · nuevo ranking {p.matchIA}% · el formador está revisando su terna</div>}
+            {p.estado==="evaluado" && <div className="chip ai"><Sparkles size={12}/> Video-entrevista completada · el formador está revisando su terna</div>}
 
             {p.estado==="slots_enviados" && (<>
               <label>El formador te invitó a entrevista ({p.modalidadEnt}). Elige uno de los 3 horarios:</label>
@@ -2615,6 +2684,13 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
               </div>
             )}
 
+            {p.estado==="rechazado" && (
+              <div style={{marginTop:12}}>
+                <div style={{background:"var(--bg)",border:"1px solid var(--line)",borderRadius:10,padding:"10px 14px",fontSize:13.5,fontWeight:600,color:"var(--gray)",marginBottom:10}}>Rechazaste esta invitación. Ya no participas en este proceso.</div>
+                <button className="btn gold sm" onClick={onBuscar}><Search size={13}/> Ver más vacantes</button>
+              </div>
+            )}
+
             {["descartado","filtrado"].includes(p.estado) && (
               <div style={{marginTop:12}}>
                 <div style={{background:"var(--bad-soft)",border:"1px solid #F0C4C1",borderRadius:10,padding:"10px 14px",fontSize:13.5,fontWeight:600,color:"var(--bad)",marginBottom:10}}>La vacante concluyó, gracias por aplicar.</div>
@@ -2637,6 +2713,8 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
           <button className="btn ghost" style={{marginTop:14}} onClick={()=>setFeedbackDe(null)}>Cerrar</button>
         </Modal>
       )}
+      {rechazarDe && <RechazarInvitacionModal v={rechazarDe} onClose={()=>setRechazarDe(null)}
+        onRechazar={(motivo)=>{ run(d=>ACT.rechazarInvitacion(d,rechazarDe.id,cand.id,motivo)); setRechazarDe(null); toast("Invitación rechazada · se notificó al formador"); }}/>}
       {videoV && <VideoIAModal cand={cand} v={videoV} onClose={()=>setVideoV(null)}
         onDone={()=>{run(d=>ACT.videoIA(d,videoV.id,cand.id)); setVideoV(null); toast("Video-entrevista enviada · tu ranking fue actualizado");}}/>}
       {confirmOferta && (
@@ -2706,18 +2784,38 @@ function KillerPreguntas({v, resp, setResp}){
   </>);
 }
 
-function PostulacionForm({v, onAplicar}){
+function PostulacionForm({v, onAplicar, onRechazar}){
   const [resp,setResp]=useState({});
   const todas=v.req.killer.every((_,i)=>resp[i]!=null);
   const ok=v.req.killer.every((_,i)=>resp[i]===true);
   return (
     <div>
       <KillerPreguntas v={v} resp={resp} setResp={setResp}/>
-      <button className="btn gold" style={{marginTop:12}} disabled={v.req.killer.length>0&&!todas} onClick={()=>onAplicar(ok||v.req.killer.length===0)}>
-        <Send size={15}/> Postularme a esta vacante
-      </button>
+      <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
+        <button className="btn gold" disabled={v.req.killer.length>0&&!todas} onClick={()=>onAplicar(ok||v.req.killer.length===0)}>
+          <Send size={15}/> Postularme a esta vacante
+        </button>
+        {onRechazar && <button className="btn ghost" onClick={onRechazar}><XCircle size={15}/> Rechazar invitación</button>}
+      </div>
       {v.req.killer.length>0 && <div className="help" style={{marginTop:6}}>Si alguna respuesta no cumple los requisitos indispensables, el sistema cerrará tu postulación automáticamente y te lo notificará.</div>}
     </div>
+  );
+}
+
+/* Modal: el candidato rechaza una invitación del formador (con motivo opcional) */
+function RechazarInvitacionModal({v, onRechazar, onClose}){
+  const [motivo,setMotivo]=useState("");
+  return (
+    <Modal onClose={onClose}>
+      <h3 style={{marginBottom:6}}>Rechazar invitación</h3>
+      <p className="help" style={{marginBottom:14}}>Vas a rechazar la invitación a <b>"{v.req.titulo}"</b>. No continuarás en este proceso. Puedes indicar un motivo (opcional) que se compartirá con el formador.</p>
+      <label>Motivo (opcional)</label>
+      <textarea rows={3} value={motivo} onChange={e=>setMotivo(e.target.value)} placeholder="p. ej. En este momento no busco un cambio, o el esquema no se ajusta a lo que necesito…"/>
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        <button className="btn gold" onClick={()=>onRechazar(motivo.trim())}><XCircle size={15}/> Rechazar invitación</button>
+        <button className="btn ghost" onClick={onClose}>Cancelar</button>
+      </div>
+    </Modal>
   );
 }
 
