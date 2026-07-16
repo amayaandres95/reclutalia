@@ -16,7 +16,7 @@ import {
   Upload, AlertCircle, Edit3, Star, MessageSquare, User, LayoutGrid,
   ClipboardList, Zap, Link2, CalendarCheck, FileSignature, Home, Filter, Heart,
   QrCode, Landmark, ExternalLink, ClipboardCheck,
-  Archive, ArchiveRestore, FolderPlus, Share2, Loader2
+  Archive, ArchiveRestore, FolderPlus, Share2, Loader2, Check
 } from "lucide-react";
 
 /* ============================== ESTILOS ============================== */
@@ -81,17 +81,27 @@ const CSS = `
 .modal.wide{max-width:860px;}
 .xclose{position:absolute;top:14px;right:14px;background:var(--bg);border:none;border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:var(--gray);}
 /* Journey rail — elemento firma */
-.journey{display:flex;align-items:flex-start;gap:0;margin:6px 0 2px;}
-.j-step{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;min-width:0;}
-.j-step .bar{height:5px;width:100%;background:var(--line);}
-.j-step:first-child .bar{border-radius:99px 0 0 99px;} .j-step:last-child .bar{border-radius:0 99px 99px 0;}
-.j-step.done .bar{background:var(--gold);}
-.j-step.now .bar{background:linear-gradient(90deg,var(--gold) 55%,var(--line) 55%);}
-.journey.completa .j-step .bar{background:var(--ok);}
-.j-step .nm{margin-top:7px;font-size:9.5px;line-height:1.15;text-align:center;color:var(--gray);font-weight:600;padding:0 3px;}
-.j-step.done .nm,.j-step.now .nm{color:var(--ink);}
-.j-step.now .nm{color:var(--gold-dark);}
-.j-step .ph{font-size:8px;color:#B8B4AA;letter-spacing:0.1em;margin-top:2px;}
+/* Barra de proceso en 3 fases (Batch 4 · F13) */
+.fases{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;}
+.fase-box{flex:1;min-width:210px;border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;background:var(--paper);}
+.fase-box.now{border-color:var(--gold);background:#FFFDF6;}
+.fase-box.done{border-color:#BFE3CB;background:#F6FBF7;}
+.fase-hd{font-size:10.5px;font-weight:800;letter-spacing:0.07em;text-transform:uppercase;color:var(--gray);display:flex;align-items:center;gap:6px;margin-bottom:7px;}
+.fase-box.now .fase-hd{color:var(--gold-dark);} .fase-box.done .fase-hd{color:var(--ok);}
+.fase-n{width:16px;height:16px;border-radius:99px;border:1.5px solid currentColor;display:inline-flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;}
+.fase-subs{display:flex;gap:5px;flex-wrap:wrap;}
+.fase-sub{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:99px;border:1px solid var(--line);background:var(--paper);color:var(--ink2);}
+.fase-sub.ok{border-color:#BFE3CB;color:var(--ok);background:#EFF7F1;}
+.fase-sub.cur{border-color:var(--gold);color:var(--gold-dark);background:var(--gold-soft);}
+button.fase-sub{cursor:pointer;font-family:inherit;}
+button.fase-sub:disabled{opacity:0.45;cursor:not-allowed;}
+button.fase-sub.on{background:var(--ink);border-color:var(--ink);color:#fff;}
+.fases-c{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.fase-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--gray);background:var(--paper);}
+.fase-pill.now{border-color:var(--gold);color:var(--gold-dark);background:var(--gold-soft);}
+.fase-pill.done{border-color:#BFE3CB;color:var(--ok);background:#EFF7F1;}
+.fase-pill .fase-n{width:14px;height:14px;font-size:9px;}
+.fase-txt{font-size:11.5px;font-weight:700;color:var(--gold-dark);}
 .mini-pipe{display:flex;gap:3px;margin-top:6px;}
 .mini-pipe i{height:4px;flex:1;border-radius:99px;background:var(--line);}
 .mini-pipe i.f{background:var(--gold);}
@@ -175,18 +185,11 @@ const SOFT_SKILLS = ["Comunicación efectiva","Liderazgo","Trabajo en equipo","O
 const APTITUDES = ["Razonamiento numérico","Razonamiento verbal","Razonamiento lógico","Atención al detalle","Orientación al servicio","Liderazgo de equipos","Tolerancia a la presión","Creatividad"];
 const DIAS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 
-/* Etapas del Journey (10 pasos, 5 fases — según presentación ejecutiva) */
-const JOURNEY = [
-  { n:"Solicitud de vacante", f:"I" },
-  { n:"Pre-selección · Marketplace", f:"II" },
-  { n:"Filtros y ranking", f:"II" },
-  { n:"Revisión de candidatos", f:"II" },
-  { n:"Agenda y entrevista", f:"III" },
-  { n:"Selección del ideal", f:"III" },
-  { n:"Carga de documentos", f:"III" },
-  { n:"Carta oferta", f:"IV" },
-  { n:"Contratación y firma", f:"IV" },
-  { n:"Inducción", f:"V" },
+/* Proceso de la vacante en 3 fases con sub-pasos (Batch 4 · F13 — sustituye al Journey de 10 pasos) */
+const FASES = [
+  { nombre:"Búsqueda",     subs:["Descriptivo","Pool de talento"] },
+  { nombre:"Selección",    subs:["Ranking y terna","Entrevistas","Selección y documentos"] },
+  { nombre:"Contratación", subs:["Carta oferta","Contratación"] },
 ];
 
 /* Pipeline del candidato dentro de una vacante */
@@ -481,16 +484,49 @@ function Avatar({nombre, foto}){
   const ini=nombre.split(" ").slice(0,2).map(p=>p[0]).join("");
   return <div className="avatar">{ini}</div>;
 }
-/* Barra Journey de la vacante (10 etapas · 5 fases) */
-function JourneyBar({etapa, compact, completa}){
+/* Barra de proceso en 3 fases con sub-pasos palomeados (Batch 4 · F13).
+   Completa: con onSub/activo se vuelve interactiva y hace de tabs en VacanteDetail.
+   Compacta (compact): pills de fase + "Etapa n · sub-paso actual" para listados. */
+function FasesBar({v, compact, activo, onSub}){
+  const {fase, subpaso, completados}=faseVacante(v);
+  const done=completados.every(Boolean);
+  if(compact){
+    const SUBS=FASES.flatMap(f=>f.subs);
+    return (
+      <div className="fases-c">
+        {FASES.map((f,i)=>{
+          const st=done||i+1<fase?" done":i+1===fase?" now":"";
+          return (
+            <span key={f.nombre} className={"fase-pill"+st}>
+              {done||i+1<fase? <Check size={11}/> : <span className="fase-n">{i+1}</span>}{f.nombre}
+            </span>
+          );
+        })}
+        <span className="fase-txt">{done? "Proceso completado ✓" : `Etapa ${fase} · ${SUBS[subpaso]}`}</span>
+      </div>
+    );
+  }
+  const habilitado=(i)=> i===0 || v.estado==="abierta" || v.estado==="cerrada";
   return (
-    <div className={"journey"+(completa?" completa":"")}>
-      {JOURNEY.map((s,i)=>(
-        <div key={i} className={"j-step"+(completa?" done":i<etapa?" done":i===etapa?" now":"")}>
-          <div className="bar"/>
-          {!compact && <><div className="nm">{i+1}. {s.n}</div><div className="ph">FASE {s.f}</div></>}
-        </div>
-      ))}
+    <div className="fases">
+      {FASES.map((f,gi)=>{
+        const base=FASES.slice(0,gi).reduce((a,x)=>a+x.subs.length,0);
+        const faseDone=done||gi+1<fase;
+        const actual=!done&&gi+1===fase;
+        return (
+          <div key={f.nombre} className={"fase-box"+(actual?" now":faseDone?" done":"")}>
+            <div className="fase-hd">{faseDone? <CheckCircle2 size={14}/> : <span className="fase-n">{gi+1}</span>} Fase {gi+1} · {f.nombre}</div>
+            <div className="fase-subs">
+              {f.subs.map((s,k)=>{
+                const i=base+k, ok=completados[i];
+                return onSub!=null
+                  ? <button key={s} disabled={!habilitado(i)} className={"fase-sub"+(ok?" ok":"")+(activo===i?" on":"")} onClick={()=>onSub(i)}>{ok&&<Check size={12}/>}{s}</button>
+                  : <span key={s} className={"fase-sub"+(ok?" ok":!done&&i===subpaso?" cur":"")}>{ok&&<Check size={12}/>}{s}</span>;
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -539,21 +575,23 @@ function QRDemo({size=180}){
   );
 }
 
-/* Cálculo de etapa (0-9) de la vacante en el Journey */
-function etapaVacante(v){
-  if(v.estado==="borrador"||v.estado==="asignada"||v.estado==="cambios") return 0;
+/* Fase (1-3), sub-paso actual y sub-pasos completados de la vacante (Batch 4 · F13) */
+function faseVacante(v){
   const ps=Object.values(v.pipeline||{});
-  if(!ps.length) return 1;
-  const mx=Math.max(...ps.map(p=>PIPE_IDX[p.estado]??0));
-  if(mx<=0) return 1;
-  if(mx<=2) return 2;
-  if(mx<=4) return 3;
-  if(mx<=5) return 4;
-  if(mx===6) return 5;
-  if(mx===7) return v.estado==="cerrada"?9:6;
-  if(mx===8) return 7;
-  if(mx===9) return 8;
-  return 9;
+  const mx=ps.length? Math.max(...ps.map(p=>PIPE_IDX[p.estado]??-1)) : -1;
+  const aprobada=v.estado==="abierta"||v.estado==="cerrada";
+  const completados=[
+    aprobada,                                        // Descriptivo (aprobado por el formador)
+    aprobada && ps.length>0,                         // Pool de talento (hay invitados/postulados)
+    mx>=PIPE_IDX.evaluado,                           // Ranking y terna (hay evaluados)
+    mx>=PIPE_IDX.entrevistado,                       // Entrevistas (hay entrevistados)
+    mx>=PIPE_IDX.docs_completos,                     // Selección y documentos (ideal elegido + docs)
+    mx>=PIPE_IDX.oferta_enviada,                     // Carta oferta (enviada o aceptada)
+    v.estado==="cerrada" || mx>=PIPE_IDX.contratado, // Contratación (contrato firmado)
+  ];
+  let subpaso=completados.findIndex(x=>!x); if(subpaso<0) subpaso=completados.length-1;
+  const fase= subpaso<2?1 : subpaso<5?2 : 3;
+  return { fase, subpaso, completados };
 }
 
 /* ¿La vacante ya tiene candidato elegido? (Batch 3 · F10) — derivado del pipeline, sin nuevo estado */
@@ -1629,7 +1667,6 @@ function VacanteDetail({db, v, run, toast}){
   const seleccionado=pipe.find(x=>["seleccionado","docs_completos","oferta_enviada","contratado"].includes(x.p.estado));
   const contratado=pipe.find(x=>x.p.estado==="contratado");
   const abierta=v.estado==="abierta"||v.estado==="cerrada";
-  const TABS=[["Descriptivo",true],["Pool de talento",abierta],["Ranking y terna",abierta],["Entrevistas",abierta],["Selección y documentos",abierta],["Carta oferta",abierta],["Contratación",abierta]];
 
   const SimBtn=({cid,label})=>(
     <button className="btn sm" style={{background:"var(--ai-soft)",color:"var(--ai)",border:"1px dashed #C7CBF5"}}
@@ -1694,10 +1731,10 @@ function VacanteDetail({db, v, run, toast}){
             </div>
           </div>
         </div>
-        <div style={{marginTop:16}}><JourneyBar etapa={etapaVacante(v)} completa={v.estado==="cerrada"}/></div>
       </div>
 
-      <div className="tabs">{TABS.map(([t,en],i)=><button key={t} disabled={!en} className={"tab"+(tab===i?" on":"")} onClick={()=>setTab(i)}>{t}</button>)}</div>
+      {/* Proceso en 3 fases: la barra completa agrupa las tabs bajo cada fase (Batch 4 · F13) */}
+      <div style={{margin:"0 0 16px"}}><FasesBar v={v} activo={tab} onSub={setTab}/></div>
 
       {tab===0 && <div className="card"><VistaDescriptivo v={v} onAprobar={()=>setBuscando(true)} onCambios={(t)=>{run(d=>ACT.solicitarCambios(d,v.id,t)); toast("Solicitud de cambios enviada al administrador");}}/></div>}
 
@@ -2028,9 +2065,8 @@ function FormadorHome({db, formador, run, onOpen}){
         <div className="stat"><b>{activos}</b><span>Candidatos en proceso</span></div>
         <div className="stat"><b style={{color:pend?"var(--gold-dark)":"inherit"}}>{pend}</b><span>Notificaciones sin leer</span></div>
       </div>
-      <h3 style={{margin:"4px 0 12px",fontSize:15}}>Tus vacantes y su avance en el journey</h3>
+      <h3 style={{margin:"4px 0 12px",fontSize:15}}>Tus vacantes y su avance en el proceso</h3>
       {mias.map(v=>{
-        const et=etapaVacante(v);
         const enProceso=Object.keys(v.pipeline).length;
         return (
           <div className={"card"+(v.estado==="cerrada"?" ok":"")} key={v.id} style={{marginBottom:14,cursor:"pointer"}} onClick={()=>onOpen(v.id)}>
@@ -2043,7 +2079,7 @@ function FormadorHome({db, formador, run, onOpen}){
               <span style={{marginLeft:"auto"}} className="help">{enProceso? enProceso+" candidato(s) en proceso · ":""}Creada {v.creada}</span>
               <ChevronRight size={16} color="var(--gray)"/>
             </div>
-            <div style={{marginTop:12}}><JourneyBar etapa={et} completa={v.estado==="cerrada"}/></div>
+            <div style={{marginTop:12}}><FasesBar v={v} compact/></div>
           </div>
         );
       })}
@@ -2780,7 +2816,7 @@ function AdminPanel({db, run, toast, vista, setVista}){
             </span>
           </div>
           {v.estado==="cambios" && <div className="card" style={{marginTop:10,background:"var(--bad-soft)",borderColor:"#F0C4C1",padding:"10px 14px",fontSize:12.5}}><b>El formador solicitó:</b> "{v.cambios}"</div>}
-          <div style={{marginTop:12}}><JourneyBar etapa={etapaVacante(v)} compact completa={v.estado==="cerrada"}/></div>
+          <div style={{marginTop:12}}><FasesBar v={v} compact/></div>
         </div>
       ))}
       {editV && (

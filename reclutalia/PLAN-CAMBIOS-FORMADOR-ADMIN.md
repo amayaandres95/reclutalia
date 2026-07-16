@@ -3,7 +3,7 @@
 Plan por batches, **modo ejecución directa optimizada en tokens**. Un batch por turno, en orden.
 Marcar ✅ al terminar cada batch (editar este archivo).
 
-**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ⬜ · Batch 5 ⬜ · Batch 6 ⬜
+**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ✅ · Batch 5 ⬜ · Batch 6 ⬜
 
 ---
 
@@ -165,7 +165,7 @@ opción **"Otra fecha"** que muestra un `input type="date"` para elegir la fecha
 
 ---
 
-## BATCH 4 — Barra de proceso de 3 fases ⬜
+## BATCH 4 — Barra de proceso de 3 fases ✅
 
 (Punto F13 + Admin A1.)
 

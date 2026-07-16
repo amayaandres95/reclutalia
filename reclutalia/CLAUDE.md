@@ -68,10 +68,10 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
 | Banner `/* ===== ... ===== */` | Contenido |
 |---|---|
 | `ESTILOS` | Todo el CSS. Los **tokens de diseño (colores/marca) están en `:root`** |
-| `CATÁLOGOS` | Áreas, niveles, skills, aptitudes, `JOURNEY` (10 pasos), `PIPE` (pipeline candidato) |
+| `CATÁLOGOS` | Áreas, niveles, skills, aptitudes, `FASES` (3 fases con sub-pasos, Batch 4), `PIPE` (pipeline candidato) |
 | `DATOS SEMILLA` | 32 candidatos, 3 vacantes, 2 formadores, 1 admin |
 | `UTILIDADES` | `matchScore`/`buildPool` (motor de match simulado), `descargarCV`, helpers de fecha/dinero |
-| `COMPONENTES BASE` | `Modal`, `Chip`, `MatchRing`, `Avatar` (acepta prop `foto`), `JourneyBar`, `MiniPipe`, `EstadoChip`, `QRDemo` (QR decorativo estático, Batch 5) |
+| `COMPONENTES BASE` | `Modal`, `Chip`, `MatchRing`, `Avatar` (acepta prop `foto`), `FasesBar` (Batch 4), `MiniPipe`, `EstadoChip`, `QRDemo` (QR decorativo estático, Batch 5) |
 | `BOT DE APOYO` | Bot flotante FAQ (transversal) |
 | `PERFIL DE CANDIDATO` | `PerfilModal` (solo lectura, lo ve el formador; prop opcional `req` → resalta en verde esp/hard/soft coincidentes; **Batch 2:** muestra título destacado, resumen, intereses, experiencia y educación —bullets con `rangoFechas`/`fmtMes`, máx 3 + "Ver más"—; props opcionales `fav/enCat/archivado/onFav/onCat/onArchivar` → acciones favorito/categorizar/archivar cuando lo abre el formador) · `PerfilEditor` (editor del propio candidato: modal `wide` con pestañas *Mi perfil* / *Mis documentos*) |
 | `SUBIDA DE ARCHIVO` | `UploadPDF` (solo PDF, máx 1 MB; prop opcional `onDelete`), `UploadFoto` (imagen JPG/PNG ≤ 2 MB → data URL), `TagPicker`, `TagInput` (chips de texto libre con ✕ al hover, máx N) |
@@ -123,8 +123,14 @@ ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana pa
 - **Motor de match (`matchScore`):** determinístico (misma entrada → mismo score). Pesos aprox:
   especialidades req ~34, hard skills ~24, nivel ~12, soft ~8, experiencia ~8, opcionales ~6,
   ubicación/radio ~7, modalidad ~3; jitter determinístico; tope 98; **umbral de descarte ~28**.
-- **Journey:** `JOURNEY` = 10 etapas en 5 fases; `JourneyBar` lo dibuja. `etapaVacante(v)` calcula
-  la etapa actual a partir del pipeline.
+- **Proceso en 3 fases (Batch 4 · F13/A1 — sustituye al Journey de 10 pasos):** catálogo `FASES`
+  (Búsqueda: Descriptivo·Pool / Selección: Ranking·Entrevistas·Selección y documentos /
+  Contratación: Carta oferta·Contratación). `faseVacante(v)` → `{fase, subpaso, completados[]}`
+  derivado del pipeline (`PIPE_IDX`) y `v.estado`. `FasesBar` la dibuja: **completa** con
+  `activo`/`onSub` es interactiva y hace de tabs agrupadas por fase en `VacanteDetail` (sub-pasos
+  con ✓ verde al completarse); **compacta** (`compact`) muestra pills de fase + "Etapa n ·
+  sub-paso" en `FormadorHome` y el listado del Admin. `JourneyBar`/`JOURNEY`/`etapaVacante`
+  fueron eliminados; el candidato conserva `MiniPipe`.
 - **Pipeline del candidato:** estados en `PIPE` / `PIPE_IDX`
   (invitado → postulado → filtros_ok → evaluado → slots_enviados → agendado → entrevistado →
   seleccionado → docs_completos → oferta_enviada → contratado; terminales: filtrado, descartado).
