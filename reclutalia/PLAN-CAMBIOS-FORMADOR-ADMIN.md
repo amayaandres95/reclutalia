@@ -3,7 +3,7 @@
 Plan por batches, **modo ejecución directa optimizada en tokens**. Un batch por turno, en orden.
 Marcar ✅ al terminar cada batch (editar este archivo).
 
-**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ✅ · Batch 5 ✅ · Batch 6 ⬜
+**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ · Batch 4 ✅ · Batch 5 ✅ · Batch 6 ✅ — PLAN COMPLETO
 
 ---
 
@@ -226,7 +226,12 @@ satisfecho. La validación final del guardado se mantiene.
 
 ---
 
-## BATCH 6 — Solicitud de cambios por campo ⬜
+## BATCH 6 — Solicitud de cambios por campo ✅
+
+> Extras incluidos en este batch (solicitud directa del usuario): al abrir una vacante el formador
+> aterriza en el sub-paso activo/pendiente (`tabInicial`), botón "Enviar recordatorio de documentos"
+> al candidato seleccionado (`ACT.recordarDocs`), y las vacantes Confidenciales no aparecen en
+> "Buscar vacantes" del candidato.
 
 (Punto F15 + Admin A8.) Requiere Batch 5 (los campos nuevos también deben soportar esto).
 

@@ -205,6 +205,20 @@ ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana pa
   secciones completas. `VistaDescriptivo` muestra los campos nuevos; `DetalleVacanteModal` (candidato)
   solo sede/unidad y los "no relevante" aplicables (no ve tipo de vacante ni edad preferida). Semilla:
   las 3 vacantes traen sede/unidad; V-1035 con `edadNoRelevante`.
+- **Solicitud de cambios por campo (Batch 6 · F15/A8):** `v.cambios` ahora es un objeto
+  `{campo:anotación}` con claves del catálogo `CAMPOS_DESC` (un string legado sigue soportado;
+  `CambiosResumen` pinta ambos formatos). **Formador:** en `VistaDescriptivo`, "Solicitar cambios"
+  activa un lápiz (`.lapiz`) por campo; el editor de anotación vive en la tarjeta superior (un input
+  dentro del Row inline perdería el foco al re-montarse); las anotaciones se acumulan y
+  `ACT.solicitarCambios(db,vacId,cambios)` las envía juntas. **Admin:** `VacanteForm` acepta prop
+  `cambios` → cada campo solicitado muestra caja `.anot` (ámbar + AlertCircle) con botón "Rechazar
+  cambio"/"Reconsiderar"; `onSave(req,rechazados)` → `ACT.editarVacante(db,vacId,req,rechazados)`
+  registra en `v.historial` "Cambios aplicados: … · Rechazados: …" y lo notifica al formador
+  (aplicados = solicitados − rechazados, sin comparar valores). **Extras:** `tabInicial(v)` —
+  `VacanteDetail` abre en el sub-paso activo/pendiente del proceso, no en el pool;
+  `ACT.recordarDocs(db,vacId,cid)` — botón "Enviar recordatorio de documentos" en "Selección y
+  documentos" cuando el seleccionado tiene pendientes; las vacantes **Confidenciales no aparecen**
+  en "Buscar vacantes" del candidato.
 - **Resaltado de coincidencias:** el candidato ve en verde (chip `ok` con ✓) sus habilidades/herramientas/
   especialidades que coinciden con el descriptivo en `DetalleVacanteModal`; el formador ve en verde las
   del candidato que coinciden con la vacante en `PerfilModal` (prop `req`).
