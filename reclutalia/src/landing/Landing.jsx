@@ -409,7 +409,7 @@ function Hero({onLogin}){
           <span className="tag tag-gold-dk" data-rv><Sparkles size={13}/> El nuevo proceso de reclutamiento</span>
           <h1 data-rv style={{"--i":1}}>Automatiza y gestiona tu búsqueda de talento en <em>3 simples pasos</em></h1>
           <p className="sub" data-rv style={{"--i":2}}>
-            Reclutalia pone el proceso completo en manos del jefe directo: la IA busca, filtra y
+            Reclutalia pone el proceso completo en manos del formador directo: la IA busca, filtra y
             entrevista; tú exploras, decides y contratas. Sin triangulaciones, sin esperas y con
             apoyo en cada paso.
           </p>
