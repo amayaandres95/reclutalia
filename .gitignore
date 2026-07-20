@@ -12,8 +12,12 @@
 /.next/
 /out/
 
-# production
+# production / build output
 /build
+dist/
+
+# vite cache (se regenera en cada arranque)
+.vite/
 
 # misc
 .DS_Store
