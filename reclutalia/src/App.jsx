@@ -173,7 +173,29 @@ img.avatar{object-fit:cover;}
 .confetti{position:absolute;width:9px;height:14px;top:-20px;animation:fall 3.4s linear infinite;border-radius:2px;}
 @keyframes fall{to{transform:translateY(120vh) rotate(720deg);}}
 .botfab{position:fixed;bottom:22px;right:22px;z-index:90;width:54px;height:54px;border-radius:99px;background:var(--ink);color:var(--gold);border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(0,0,0,0.3);}
-.botpanel{position:fixed;bottom:86px;right:22px;z-index:95;width:330px;background:#fff;border:1px solid var(--line);border-radius:var(--r-4);box-shadow:0 18px 50px rgba(0,0,0,0.22);overflow:hidden;display:flex;flex-direction:column;max-height:460px;}
+.botpanel{position:fixed;bottom:86px;right:22px;z-index:95;width:340px;max-width:calc(100vw - 32px);background:var(--paper);border:1px solid var(--line);border-radius:var(--r-4);box-shadow:0 18px 50px rgba(0,0,0,0.22);overflow:hidden;display:flex;flex-direction:column;height:520px;max-height:calc(100vh - 120px);}
+.bot-head{background:var(--ink);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:9px;}
+.bot-tabs{display:flex;border-bottom:1px solid var(--line);background:var(--bg);}
+.bot-tab{flex:1;background:none;border:none;padding:10px;font-size:12.5px;font-weight:700;color:var(--gray);border-bottom:2px solid transparent;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;}
+.bot-tab.on{color:var(--ink);border-bottom-color:var(--gold);}
+.bot-body{padding:14px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:8px;min-height:0;}
+.bot-bubble{border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:12.5px;line-height:1.45;max-width:85%;}
+.bot-bubble.they{align-self:flex-start;background:var(--bg);border-bottom-left-radius:4px;}
+.bot-bubble.me{align-self:flex-end;background:var(--gold-soft);border-color:#F2D089;border-bottom-right-radius:4px;}
+.bot-time{display:block;font-size:9.5px;color:var(--gray);margin-top:3px;text-align:right;}
+.bot-foot{padding:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px;max-height:230px;overflow:auto;}
+.bot-q{justify-content:flex-start;text-align:left;}
+.bot-empty{margin:auto;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px;}
+.bot-empty p{font-size:13px;font-weight:700;color:var(--ink2);}
+.bot-empty span{font-size:11.5px;color:var(--gray);}
+.bot-contact{display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--line);border-radius:var(--r-3);background:var(--paper);cursor:pointer;text-align:left;}
+.bot-contact:hover{border-color:var(--gold);}
+.bot-contact-sub{font-size:11px;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bot-subhead{padding:10px 14px;border-bottom:1px solid var(--line);background:var(--bg);}
+.bot-send{padding:10px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;}
+.bot-send input{flex:1;border:1px solid var(--line);border-radius:var(--r-pill);padding:9px 14px;font-size:12.5px;background:var(--paper);color:var(--ink);}
+.bot-send input:focus{outline:none;border-color:var(--gold);}
+.linklike{background:none;border:none;color:var(--ai);font-size:11.5px;font-weight:600;cursor:pointer;padding:0;margin-bottom:4px;}
 .demo-hint{font-size:11px;color:var(--ai);background:var(--ai-soft);border:1px dashed #C7CBF5;border-radius:var(--r-2);padding:6px 10px;display:inline-flex;align-items:center;gap:6px;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent-dark-bg);color:var(--accent-dark-text);padding:11px 20px;border-radius:var(--r-pill);font-size:13px;font-weight:600;z-index:200;box-shadow:0 10px 30px rgba(0,0,0,0.3);display:flex;gap:8px;align-items:center;}
 .slotbtn{border:1.5px solid var(--line);background:var(--paper);border-radius:var(--r-2);padding:10px;font-size:12.5px;text-align:center;font-weight:600;color:var(--ink2);}
@@ -809,37 +831,264 @@ function faseVacante(v){
 const candidatoElegido=(v)=> v.estado!=="cerrada" && Object.values(v.pipeline||{}).some(p=>["seleccionado","docs_completos","oferta_enviada"].includes(p.estado));
 
 /* ============================== BOT DE APOYO (transversal) ============================== */
-const BOT_FAQ=[
-  {q:"¿Qué es el pool de talento?", a:"Es el marketplace de candidatos internos y externos preregistrados. Al aprobar tu vacante, la IA busca, filtra y ranquea automáticamente los perfiles más compatibles."},
-  {q:"¿Cómo funciona el ranking con IA?", a:"El agente de IA compara especialidades, habilidades, nivel, experiencia y ubicación contra tu vacante y asigna un match de 0 a 100%. Se actualiza tras la video-entrevista y la entrevista contigo."},
-  {q:"¿Qué documentos sube el candidato?", a:"Para filtros iniciales: constancias de empleos previos y el examen psicométrico (válido 6 meses). Para contratación: INE, CURP, RFC, comprobante de domicilio, comprobante de estudios y su cuenta bancaria para nómina. Solo PDF, máximo 1 MB por archivo."},
-  {q:"¿Puedo cambiar la vacante que me asignaron?", a:"Sí. Antes de aprobarla puedes solicitar cambios al administrador desde la pestaña Descriptivo; recibirás una notificación cuando esté actualizada."},
-  {q:"¿Cómo agendo entrevistas?", a:"Al invitar candidatos a entrevista conectas tu calendario de Outlook/Teams (simulado) y propones 3 horarios; el candidato confirma uno y ambos reciben el enlace de Teams."},
-];
-function BotSoporte(){
+/* FAQ contextual por rol y paso del proceso (Batch 2 · UX). Preguntas y respuestas coherentes
+   con el funcionamiento real del prototipo. Se resuelve el set con faqPara(rol, ctxKey). */
+const BOT_FAQ={
+  default:[
+    {q:"¿Qué es Reclutalia?", a:"Es la plataforma para cubrir vacantes de forma autónoma y auto-gestionable, con apoyo de IA en la búsqueda, el filtrado y las entrevistas. Tú, como jefe directo, gestionas todo el proceso."},
+    {q:"¿Cómo cambio de rol en la demo?", a:"En el menú lateral (o el cajón hamburguesa en móvil) usa 'VISTA DEMO — CAMBIAR ROL' para alternar entre Formador, Administrador y Candidato."},
+  ],
+  /* ---- Candidato ---- */
+  cand_sin:[
+    {q:"¿Cómo empiezo a buscar vacantes?", a:"Entra a 'Buscar vacantes' en el menú. Verás las vacantes abiertas con tu porcentaje de compatibilidad; puedes filtrar por ubicación, nivel, área y sueldo, guardar favoritas con el corazón y postularte directo."},
+    {q:"¿Conviene completar mi perfil primero?", a:"Sí. Toca tu avatar (arriba a la derecha) para abrir 'Editar perfil': completa experiencia, educación, habilidades y sube tus documentos (INE, CURP, RFC, comprobantes). Esos datos se reutilizan al postularte."},
+    {q:"¿Cómo mejoro mi compatibilidad?", a:"El match compara tus especialidades, herramientas, habilidades, nivel, experiencia y ubicación contra cada vacante. Mientras más completo y preciso tu perfil, mejor tu porcentaje."},
+  ],
+  cand_buscar:[
+    {q:"¿Qué significa el porcentaje de cada vacante?", a:"Es tu compatibilidad estimada (0–100%) según cómo embona tu perfil con el descriptivo: especialidades, herramientas, habilidades, nivel, experiencia, ubicación y modalidad."},
+    {q:"¿Cómo me postulo?", a:"Abre el detalle de la vacante y usa 'Aplicar'. Si tiene preguntas filtro (killer questions), respóndelas; si cumples, tu postulación llega al formador."},
+    {q:"¿Para qué sirve el corazón?", a:"Guarda la vacante en tus favoritos para volver a ella fácilmente. No te postula todavía; solo la marca."},
+    {q:"No veo el código de la vacante", a:"Por diseño no mostramos el código interno en la búsqueda; te guías por el título, el área y la ubicación."},
+  ],
+  cand_invitado:[
+    {q:"Me invitaron a un proceso, ¿qué hago?", a:"Un formador te invitó a su vacante. Revisa el detalle y confirma tu interés postulándote; si no te interesa, puedes rechazar la invitación."},
+    {q:"¿Puedo rechazar la invitación?", a:"Sí. En la invitación encontrarás la opción para rechazarla; el motivo es opcional y el formador será notificado."},
+  ],
+  cand_postulado:[
+    {q:"¿Qué documentos piden en los filtros iniciales?", a:"Constancias de tus empleos previos (uno o varios PDF) y el examen psicométrico. También debes marcar la casilla de autorización para validar tu información."},
+    {q:"¿El examen psicométrico caduca?", a:"Tiene vigencia de 6 meses. Si ya lo realizaste para otra vacante dentro de ese periodo, se reutiliza automáticamente."},
+    {q:"¿Cuándo puedo enviar a validación?", a:"El botón 'Enviar a validación automática' se habilita con al menos una constancia, tu psicométrico vigente y la casilla de autorización marcada."},
+  ],
+  cand_filtros_ok:[
+    {q:"Pasé los filtros, ¿qué sigue?", a:"Sigue tu video-entrevista con IA: respondes unas preguntas grabadas y la IA analiza tus respuestas para actualizar tu ranking en la vacante."},
+    {q:"¿Es obligatoria la video-entrevista?", a:"Es el paso para que el formador te considere en su terna. Puedes hacerla desde tu panel cuando estés listo, en un lugar tranquilo y con buena conexión."},
+  ],
+  cand_evaluado:[
+    {q:"Terminé la video-entrevista, ¿ahora qué?", a:"El formador revisa a los mejores perfiles (su terna). Si avanzas, recibirás una invitación con horarios para entrevistarte con él."},
+    {q:"¿Puedo ver mi nuevo ranking?", a:"Tu compatibilidad se actualiza tras la video-entrevista. El detalle del ranking lo administra el formador; tú verás tu avance en 'Mis procesos'."},
+  ],
+  cand_slots_enviados:[
+    {q:"El formador me envió horarios, ¿cómo elijo?", a:"En 'Mis procesos' verás 3 horarios propuestos. Elige el que te convenga; se generará automáticamente la reunión de Teams y ambos recibirán el enlace."},
+    {q:"¿Qué pasa si un horario ya no está disponible?", a:"Si otro candidato tomó ese horario, aparecerá como 'No disponible'. Simplemente elige otro de los horarios libres."},
+  ],
+  cand_agendado:[
+    {q:"Ya agendé mi entrevista, ¿dónde está el enlace?", a:"Dentro de tu proceso, en 'Mis procesos', encontrarás el enlace de Teams. Conéctate a la hora acordada."},
+    {q:"¿Puedo reagendar o dudar algo con el formador?", a:"Sí. Usa la pestaña 'Mensajes' de este asistente para escribirle directamente al formador de tu proceso."},
+  ],
+  cand_entrevistado:[
+    {q:"Ya me entrevisté, ¿cuándo sabré el resultado?", a:"El formador registra su retroalimentación y su decisión. Si eres seleccionado, se te pedirá completar tu documentación; te llegará una notificación."},
+  ],
+  cand_seleccionado:[
+    {q:"¡Me seleccionaron! ¿Qué documentos subo?", a:"INE, CURP, RFC, comprobante de domicilio y comprobante de estudios (PDF, máx 1 MB c/u), más tu cuenta bancaria para nómina. Si la vacante lo requiere, también agendarás tu examen médico."},
+    {q:"¿Cómo registro mi cuenta bancaria?", a:"En el checklist usa 'Ingresar/editar número de cuenta' y captura tu número de cuenta o CLABE. Si no tienes cuenta, puedes abrir una desde el mismo panel."},
+    {q:"¿Cómo agendo el examen médico?", a:"Cuando la vacante lo pide, captura tu ubicación, busca sucursales, elige una y una fecha de la próxima semana. El formador validará el resultado positivo."},
+  ],
+  cand_docs_completos:[
+    {q:"Ya completé mi documentación, ¿qué sigue?", a:"El formador revisa que todo esté en orden y te enviará la carta oferta con el sueldo, la fecha de ingreso y la ubicación de presentación."},
+  ],
+  cand_oferta_enviada:[
+    {q:"Recibí mi carta oferta, ¿qué incluye?", a:"El puesto, el sueldo, tu fecha de ingreso y la ubicación donde te presentarás el primer día (con enlace a Google Maps). Revísala con calma."},
+    {q:"¿Cómo acepto la oferta?", a:"Desde tu panel confirmas la oferta. A partir de ahí recibirás tu bienvenida y los detalles de tu primer día."},
+  ],
+  cand_contratado:[
+    {q:"¡Ya estoy contratado! ¿Cuándo y dónde me presento?", a:"En tu bienvenida verás tu fecha de ingreso y la ubicación de presentación con enlace a Google Maps. La firma del contrato es presencial ese primer día."},
+    {q:"¿Qué llevo el primer día?", a:"Tus documentos originales. Recibirás también el kit de inducción y la guía de bienvenida."},
+  ],
+  cand_cerrado:[
+    {q:"Mi proceso se cerró, ¿puedo aplicar a otra vacante?", a:"Claro, y agradecemos tu participación. En 'Buscar vacantes' encontrarás otras oportunidades acordes a tu perfil."},
+    {q:"¿Puedo ver retroalimentación?", a:"En 'Mis procesos' usa 'Ver mi feedback' para conocer los comentarios de tu entrevista, cuando estén disponibles."},
+  ],
+  /* ---- Formador ---- */
+  form_home:[
+    {q:"¿Qué veo en 'Mis vacantes'?", a:"El listado de las vacantes asignadas a ti, con su etapa actual del proceso. Ábrelas para gestionarlas paso a paso."},
+    {q:"¿Cómo funciona el proceso?", a:"Son 3 fases: Búsqueda (descriptivo y pool), Selección (ranking, entrevistas y documentos) y Contratación (carta oferta y alta). La barra de fases te ubica en cada paso."},
+  ],
+  form_notif:[
+    {q:"¿Qué notificaciones recibo?", a:"Cuando se te asigna una vacante, cuando un candidato acepta un horario, completa filtros, sube documentos o acepta tu oferta. Toca una notificación para ir a la vacante."},
+  ],
+  form_sub0:[
+    {q:"¿Puedo cambiar el descriptivo de la vacante?", a:"Sí. Antes de aprobarla, solicita cambios por campo al administrador desde la pestaña Descriptivo; puedes anotar cada ajuste y enviarlos a revisión."},
+    {q:"¿Cómo inicio la búsqueda?", a:"Cuando el descriptivo esté correcto, aprueba la vacante. La IA comenzará a buscar, filtrar y ranquear candidatos en tu pool."},
+  ],
+  form_sub1:[
+    {q:"¿Qué es el pool de talento?", a:"Es el marketplace de candidatos internos y externos que la IA busca, filtra y ranquea para tu vacante al aprobarla."},
+    {q:"¿Cómo organizo a los candidatos?", a:"Puedes marcarlos como favoritos, agruparlos en categorías, archivar los que no te interesan y filtrar por habilidades, experiencia mínima, estudios o tipo (interno/externo)."},
+    {q:"¿Y si quiero más candidatos?", a:"Usa 'Solicitar más candidatos'; puedes activar Multiposting para ampliar la difusión de la vacante a plataformas de terceros (simulado)."},
+    {q:"¿Cómo invito a alguien?", a:"Abre el perfil del candidato y usa la invitación directa; entrará a tu proceso y podrás avanzarlo por las etapas."},
+  ],
+  form_sub2:[
+    {q:"¿Cómo leo el ranking?", a:"Las bandas son: ideales (≥90%), adecuados (70–89%) y adicionales (<70%). El porcentaje combina el descriptivo con el perfil y la video-entrevista de IA."},
+    {q:"¿Puedo ver la video-entrevista de IA?", a:"Sí. En 'Ranking y terna' usa 'Ver entrevista IA' para revisar la grabación y el resumen automático de cada candidato."},
+  ],
+  form_sub3:[
+    {q:"¿Cómo agendo entrevistas?", a:"Invitas al candidato y propones 3 horarios conectando tu Outlook/Teams (simulado). El candidato confirma uno y se genera la reunión."},
+    {q:"¿Cómo registro la entrevista?", a:"Durante la entrevista la IA toma notas; tú agregas las tuyas, das una calificación y tu retroalimentación. Eso actualiza el ranking final del candidato."},
+  ],
+  form_sub4:[
+    {q:"¿Cómo selecciono al candidato ideal?", a:"Compara tu terna y elige al candidato. Se le pedirá automáticamente subir su documentación, con recordatorios."},
+    {q:"¿Qué reviso de su documentación?", a:"Ves su checklist (INE, CURP, RFC, domicilio, estudios y cuenta bancaria) en solo lectura. Si la vacante pide examen médico, validas aquí el resultado positivo."},
+  ],
+  form_sub5:[
+    {q:"¿Cómo genero la carta oferta?", a:"Se arma desde el tabulador de la vacante: defines el sueldo, la fecha de ingreso y la ubicación de presentación del primer día. El candidato la recibe al instante."},
+  ],
+  form_sub6:[
+    {q:"¿Qué pasa cuando el candidato acepta?", a:"Queda contratado. Verás la confirmación con su fecha de ingreso y ubicación (con enlace a Google Maps). La firma del contrato es presencial el primer día."},
+  ],
+  /* ---- Admin ---- */
+  admin_vacantes:[
+    {q:"¿Qué administro aquí?", a:"El catálogo de vacantes: creas nuevas, revisas sus datos y atiendes las solicitudes de cambio que envían los formadores."},
+    {q:"¿Cómo atiendo una solicitud de cambios?", a:"Cuando un formador pide ajustes por campo, los revisas uno a uno y los aceptas o rechazas; el historial queda registrado y el formador es notificado al reenviar."},
+  ],
+  admin_nueva:[
+    {q:"¿Qué datos lleva una vacante?", a:"Título, área, nivel, sede, unidad, tipo de contratación, rango de edad, especialidades, habilidades, herramientas, sueldo y condiciones (por ejemplo, si requiere examen médico). El formulario valida por sección."},
+    {q:"¿Qué son los campos 'no relevantes'?", a:"Son requisitos que marcas como no determinantes para el match, de modo que no penalicen a candidatos que no los cumplan."},
+  ],
+  admin_candidatos:[
+    {q:"¿Qué veo en el pool de candidatos?", a:"El padrón de candidatos internos y externos preregistrados que alimenta el match de las vacantes. Puedes darlos de alta y editarlos."},
+  ],
+  admin_notif:[
+    {q:"¿Qué notificaciones recibe el administrador?", a:"Avisos relacionados con las vacantes que administras, como solicitudes de cambio de los formadores. Toca una para ir al detalle."},
+  ],
+};
+const faqPara=(ctxKey)=> BOT_FAQ[ctxKey] || BOT_FAQ.default;
+
+/* Chat directo (Batch 2 · UX) — helpers de módulo */
+const mismoPart=(a,b)=> a.tipo===b.tipo && String(a.id)===String(b.id);
+/* Localiza el hilo por (vacId, par de participantes). Los hilos son de 2 personas. */
+function chatThread(db, vacId, a, b){
+  return (db.chats||[]).find(ch=> String(ch.vacId)===String(vacId||null)
+    && ch.participantes.length===2
+    && ch.participantes.some(p=>mismoPart(p,a))
+    && ch.participantes.some(p=>mismoPart(p,b)));
+}
+/* Nombre legible de un participante */
+function nombreDe(db, p){
+  if(!p) return "";
+  if(p.tipo==="formador") return db.formadores.find(f=>f.id===p.id)?.nombre || "Formador";
+  if(p.tipo==="candidato") return db.candidatos.find(c=>c.id===Number(p.id))?.nombre || "Candidato";
+  return "Administrador (RH)";
+}
+/* Contactos con los que la identidad actual puede chatear, según reglas de disponibilidad.
+   Devuelve [{vacId, otro:{tipo,id}, titulo, sub}]. Se complementa con hilos ya existentes. */
+function contactosChat(db, rol, yo){
+  const out=[]; const seen=new Set();
+  const push=(vacId,otro,titulo,sub)=>{ const k=(vacId||"gen")+"|"+otro.tipo+"|"+otro.id; if(seen.has(k)) return; seen.add(k); out.push({vacId:vacId||null,otro,titulo,sub}); };
+  if(rol==="candidato"){
+    (db.vacantes||[]).forEach(v=>{ const p=v.pipeline[yo.id]; if(p && PIPE_IDX[p.estado]>=PIPE_IDX.slots_enviados){
+      push(v.id,{tipo:"formador",id:v.formadorId}, nombreDe(db,{tipo:"formador",id:v.formadorId}), v.req.titulo); }});
+  } else if(rol==="formador"){
+    (db.vacantes||[]).filter(v=>v.formadorId===yo.id).forEach(v=>{ Object.entries(v.pipeline).forEach(([cid,p])=>{
+      if(PIPE_IDX[p.estado]>=PIPE_IDX.slots_enviados) push(v.id,{tipo:"candidato",id:Number(cid)}, nombreDe(db,{tipo:"candidato",id:Number(cid)}), v.req.titulo); }); });
+  } else { /* admin: formadores de las vacantes que administra */
+    [...new Set((db.vacantes||[]).map(v=>v.formadorId))].forEach(fid=> push(null,{tipo:"formador",id:fid}, nombreDe(db,{tipo:"formador",id:fid}), "Coordinación de vacantes"));
+  }
+  /* Hilos ya iniciados donde participo (permite responder al cambiar de rol en la demo) */
+  (db.chats||[]).forEach(ch=>{ if(ch.participantes.some(p=>mismoPart(p,yo))){
+    const otro=ch.participantes.find(p=>!mismoPart(p,yo)); if(!otro) return;
+    push(ch.vacId, otro, nombreDe(db,otro), ch.vacId? (db.vacantes.find(v=>v.id===ch.vacId)?.req.titulo||"") : "Coordinación de vacantes"); }});
+  return out;
+}
+/* Total de mensajes no leídos para la identidad actual (contador simple) */
+function noLeidosChat(db, yo){
+  return (db.chats||[]).reduce((n,ch)=> ch.participantes.some(p=>mismoPart(p,yo))
+    ? n+ch.mensajes.filter(m=>!m.leido && !mismoPart(m.de,yo)).length : n, 0);
+}
+
+function BotSoporte({db, run, rol, yo, ctxKey}){
   const [open,setOpen]=useState(false);
-  const [msgs,setMsgs]=useState([{de:"bot",t:"¡Hola! Soy tu asistente de Reclutalia. Estoy aquí durante todo el proceso para resolver dudas del formador y del candidato. Elige una pregunta frecuente:"}]);
+  const [tab,setTab]=useState("faq");           /* "faq" | "chat" */
+  const [msgs,setMsgs]=useState([{de:"bot",t:"¡Hola! Soy tu asistente de Reclutalia. Estoy contigo durante todo el proceso para resolver dudas. Elige una pregunta o escríbenos:"}]);
+  const [sel,setSel]=useState(null);            /* contacto seleccionado en Mensajes */
+  const [texto,setTexto]=useState("");
+  const bodyRef=useRef(null);
+  const faqs=faqPara(ctxKey);
+  const contactos=contactosChat(db, rol, yo);
+  const noLeidos=noLeidosChat(db, yo);
   const ask=(f)=> setMsgs(m=>[...m,{de:"yo",t:f.q},{de:"bot",t:f.a}]);
+  const conectarSoporte=()=> setMsgs(m=>[...m,{de:"yo",t:"Conectar con soporte"},{de:"bot",t:"Con gusto. Te estoy transfiriendo con un representante de soporte especializado de Reclutalia. Por favor mantente en línea; en breve retomará esta conversación. Tiempo de espera estimado: 3 a 5 minutos."}]);
+  /* Hilo activo del contacto seleccionado */
+  const hilo= sel && chatThread(db, sel.vacId, yo, sel.otro);
+  const abrirContacto=(c)=>{ setSel(c); if(chatThread(db,c.vacId,yo,c.otro)) run(d=>ACT.marcarChatLeido(d,c.vacId,yo,c.otro)); };
+  const enviar=()=>{ const t=texto.trim(); if(!t||!sel) return; run(d=>ACT.enviarChat(d,sel.vacId,yo,sel.otro,t)); setTexto(""); };
+  useEffect(()=>{ setSel(null); },[rol]);   /* al cambiar de rol en la demo, evita selección obsoleta */
+  useEffect(()=>{ if(bodyRef.current) bodyRef.current.scrollTop=bodyRef.current.scrollHeight; },[msgs,hilo,tab,sel]);
   return (<>
     {open && (
       <div className="botpanel">
-        <div style={{background:"var(--ink)",color:"#fff",padding:"12px 16px",display:"flex",alignItems:"center",gap:9}}>
+        <div className="bot-head">
           <Bot size={18} color="var(--gold)"/><b style={{fontSize:13.5}}>Asistente Reclutalia</b>
-          <span className="chip ai" style={{marginLeft:"auto"}}>Bot de apoyo</span>
+          <span className="chip ai" style={{marginLeft:"auto"}}>Apoyo y mensajes</span>
         </div>
-        <div style={{padding:14,overflow:"auto",flex:1,display:"flex",flexDirection:"column",gap:8}}>
-          {msgs.map((m,i)=>(
-            <div key={i} style={{alignSelf:m.de==="bot"?"flex-start":"flex-end",background:m.de==="bot"?"var(--bg)":"var(--gold-soft)",
-              border:"1px solid var(--line)",borderRadius:12,padding:"8px 12px",fontSize:12.5,maxWidth:"85%"}}>{m.t}</div>
-          ))}
+        <div className="bot-tabs">
+          <button className={"bot-tab"+(tab==="faq"?" on":"")} onClick={()=>setTab("faq")}>Asistente</button>
+          <button className={"bot-tab"+(tab==="chat"?" on":"")} onClick={()=>{setTab("chat"); setSel(null);}}>
+            Mensajes {noLeidos>0 && <span className="chip bad" style={{padding:"0 6px"}}>{noLeidos}</span>}
+          </button>
         </div>
-        <div style={{padding:12,borderTop:"1px solid var(--line)",display:"flex",flexDirection:"column",gap:6}}>
-          {BOT_FAQ.map((f,i)=><button key={i} className="btn ghost sm" style={{justifyContent:"flex-start",textAlign:"left"}} onClick={()=>ask(f)}>{f.q}</button>)}
-        </div>
+
+        {tab==="faq" && (<>
+          <div className="bot-body" ref={bodyRef}>
+            {msgs.map((m,i)=>(
+              <div key={i} className={"bot-bubble "+(m.de==="bot"?"they":"me")}>{m.t}</div>
+            ))}
+          </div>
+          <div className="bot-foot">
+            {faqs.map((f,i)=><button key={i} className="btn ghost sm bot-q" onClick={()=>ask(f)}>{f.q}</button>)}
+            <button className="btn dark sm bot-q" onClick={conectarSoporte}><MessageSquare size={13}/> Conectar con soporte</button>
+          </div>
+        </>)}
+
+        {tab==="chat" && !sel && (
+          <div className="bot-body" ref={bodyRef}>
+            {contactos.length===0
+              ? <div className="bot-empty">
+                  <MessageSquare size={26} color="var(--gray)"/>
+                  <p>Aún no tienes conversaciones disponibles.</p>
+                  <span>{rol==="candidato"
+                    ? "Podrás escribirle al formador cuando te inviten a entrevista."
+                    : rol==="formador"
+                    ? "Podrás escribir a un candidato cuando lo invites a entrevistar."
+                    : "Podrás escribir a los formadores de las vacantes que administras."}</span>
+                </div>
+              : contactos.map((c,i)=>{ const th=chatThread(db,c.vacId,yo,c.otro);
+                  const ult=th&&th.mensajes[th.mensajes.length-1];
+                  const nl=th? th.mensajes.filter(m=>!m.leido&&!mismoPart(m.de,yo)).length : 0;
+                  return (
+                  <button key={i} className="bot-contact" onClick={()=>abrirContacto(c)}>
+                    <Avatar nombre={c.titulo}/>
+                    <div style={{flex:1,minWidth:0,textAlign:"left"}}>
+                      <div style={{fontSize:13,fontWeight:700,display:"flex",gap:6}}>{c.titulo}{nl>0&&<span className="chip bad" style={{padding:"0 6px"}}>{nl}</span>}</div>
+                      <div className="bot-contact-sub">{ult? ult.texto : c.sub}</div>
+                    </div>
+                  </button>); })}
+          </div>
+        )}
+
+        {tab==="chat" && sel && (<>
+          <div className="bot-subhead">
+            <button className="linklike" onClick={()=>setSel(null)}>← Conversaciones</button>
+            <div style={{fontSize:13,fontWeight:700}}>{sel.titulo}</div>
+            <div className="bot-contact-sub">{sel.sub}</div>
+          </div>
+          <div className="bot-body" ref={bodyRef}>
+            {(!hilo || hilo.mensajes.length===0)
+              ? <div className="bot-empty"><p>Inicia la conversación con {sel.titulo.split(" ")[0]}.</p><span>Los mensajes se guardan en la demo; al cambiar de rol podrás responder.</span></div>
+              : hilo.mensajes.map((m,i)=>(
+                  <div key={i} className={"bot-bubble "+(mismoPart(m.de,yo)?"me":"they")}>
+                    {m.texto}<span className="bot-time">{m.fecha}</span>
+                  </div>))}
+          </div>
+          <div className="bot-send">
+            <input value={texto} onChange={e=>setTexto(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")enviar();}}
+              placeholder="Escribe un mensaje…"/>
+            <button className="btn gold sm" onClick={enviar} disabled={!texto.trim()} aria-label="Enviar"><Send size={15}/></button>
+          </div>
+        </>)}
       </div>
     )}
     <button className="botfab" onClick={()=>setOpen(o=>!o)} title="Bot interactivo de apoyo y soporte">
       {open? <X size={22}/> : <Bot size={24}/>}
+      {!open && noLeidos>0 && <span className="dot">{noLeidos}</span>}
     </button>
   </>);
 }
@@ -1394,6 +1643,18 @@ const ACT={
   guardarCandidato(db, cand){
     const i=db.candidatos.findIndex(c=>c.id===cand.id);
     if(i>=0) db.candidatos[i]=cand; else db.candidatos.unshift({...cand,id:Math.max(...db.candidatos.map(c=>c.id))+1});
+  },
+  /* Chat directo entre participantes (Batch 2 · UX). de/para = {tipo,id}. Un hilo por (vacId, par de participantes). */
+  enviarChat(db, vacId, de, para, texto){
+    if(!db.chats) db.chats=[];
+    let ch=chatThread(db, vacId, de, para);
+    if(!ch){ ch={ id:"C"+(db.chats.length+1)+"-"+(vacId||"gen"), vacId:vacId||null, participantes:[de,para], mensajes:[] }; db.chats.push(ch); }
+    ch.mensajes.push({ de, texto, fecha:hoy() });
+  },
+  /* Marca como leídos los mensajes de la contraparte en un hilo (para el contador de no leídos) */
+  marcarChatLeido(db, vacId, yo, otro){
+    const ch=chatThread(db, vacId, yo, otro); if(!ch) return;
+    ch.mensajes.forEach(m=>{ if(!(m.de.tipo===yo.tipo&&String(m.de.id)===String(yo.id))) m.leido=true; });
   },
 };
 
@@ -3321,7 +3582,7 @@ function AdminPanel({db, run, toast, vista, setVista}){
 
 /* ============================== APP ============================== */
 export default function App(){
-  const [db,setDb]=useState(()=>({ candidatos:SEED_CANDIDATOS, vacantes:SEED_VACANTES, formadores:FORMADORES, notifs:[
+  const [db,setDb]=useState(()=>({ candidatos:SEED_CANDIDATOS, vacantes:SEED_VACANTES, formadores:FORMADORES, chats:[], notifs:[
     { id:"N1", para:{tipo:"formador",id:"F1"}, titulo:"Se te liberó una nueva vacante", msg:'La vacante V-1042 · "Ejecutivo de Ventas Digitales" fue asignada a ti. Revisa el descriptivo, solicita cambios o apruébala para iniciar la búsqueda.', vacId:"V-1042", fecha:"01 jul 2026 · 09:12", leida:false },
   ]}));
   const run=(fn)=> setDb(d=>{ const nd=structuredClone(d); fn(nd); return nd; });
@@ -3394,6 +3655,26 @@ export default function App(){
   const titulos={ inicio: rol==="formador"?"Mis vacantes":rol==="admin"?"Vacantes":"Mis procesos",
     vacantes:"Vacantes", nueva:"Nueva vacante", candidatos:"Pool de talento (marketplace)", buscar:"Buscar vacantes", notif:"Centro de notificaciones", vacante: vAb? vAb.req.titulo : "" };
   useEffect(()=>{ setVista("inicio"); setVacAbierta(null); },[rol]);
+  /* Contexto del bot: rol + paso actual del proceso → set de FAQ (Batch 2 · UX) */
+  const botCtx=useMemo(()=>{
+    if(rol==="candidato"){
+      if(vista==="buscar") return "cand_buscar";
+      const procs=db.vacantes.map(v=>v.pipeline[candId]).filter(Boolean);
+      if(!procs.length) return "cand_sin";
+      const activos=procs.filter(p=>PIPE_IDX[p.estado]>=0);
+      const pick=(activos.length?activos:procs).reduce((a,b)=> (PIPE_IDX[b.estado]??-99)>(PIPE_IDX[a.estado]??-99)?b:a);
+      if(PIPE_IDX[pick.estado]<0) return "cand_cerrado";
+      const est=pick.estado==="oferta_aceptada"?"oferta_enviada":pick.estado;
+      return "cand_"+est;
+    }
+    if(rol==="formador"){
+      if(vista==="notif") return "form_notif";
+      if(vista==="vacante" && vAb) return "form_sub"+faseVacante(vAb).subpaso;
+      return "form_home";
+    }
+    if(vista==="notif") return "admin_notif";
+    return "admin_"+(vista==="inicio"?"vacantes":vista);
+  },[rol,vista,vAb,db,candId]);
   return (
     <div className="rk" data-theme={tema}>
       <style>{CSS}</style>
@@ -3439,7 +3720,7 @@ export default function App(){
           onClose={()=>setEditPerfil(false)}
           onSave={(c)=>{ run(d=>ACT.guardarCandidato(d,c)); setEditPerfil(false); toast("Perfil actualizado"); }}/>
       )}
-      <BotSoporte/>
+      <BotSoporte db={db} run={run} rol={rol} yo={para} ctxKey={botCtx}/>
       {toastMsg && <div className="toast"><CheckCircle2 size={15} color="var(--gold)"/>{toastMsg}</div>}
     </div>
   );

@@ -3,7 +3,7 @@
 Plan por batches, **modo ejecución directa optimizada en tokens**. Un batch por turno, en orden.
 Marcar ✅ al terminar cada batch (editar este archivo).
 
-**Estado:** Batch 1 ✅ · Batch 2 ⬜ · Batch 3 ⬜
+**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ⬜
 
 > Ejecutar DESPUÉS de terminar `PLAN-CAMBIOS-FORMADOR-ADMIN.md` (el Batch 2 de este plan
 > referencia las 3 fases del proceso que introduce aquel plan en su Batch 4).
@@ -51,7 +51,7 @@ del sidebar (extraer a un componente compartido si simplifica).
 
 ---
 
-## BATCH 2 — Chatbot 2.0: FAQ contextual + chat directo ⬜
+## BATCH 2 — Chatbot 2.0: FAQ contextual + chat directo ✅
 
 (Puntos 2.1 y 2.2.) Todo sobre el componente existente `BotSoporte`.
 

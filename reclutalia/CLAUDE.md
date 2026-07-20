@@ -72,7 +72,7 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
 | `DATOS SEMILLA` | 32 candidatos, 3 vacantes, 2 formadores, 1 admin |
 | `UTILIDADES` | `matchScore`/`buildPool` (motor de match simulado), `descargarCV`, helpers de fecha/dinero |
 | `COMPONENTES BASE` | `Modal`, `Chip`, `MatchRing`, `Avatar` (acepta prop `foto`), `FasesBar` (Batch 4), `MiniPipe`, `EstadoChip`, `QRDemo` (QR decorativo estático, Batch 5) |
-| `BOT DE APOYO` | Bot flotante FAQ (transversal) |
+| `BOT DE APOYO` | `BotSoporte` flotante transversal con 2 pestañas (Batch 2 UX). **Asistente:** FAQ contextual — catálogo `BOT_FAQ` por rol y paso (`faqPara(ctxKey)`; `ctxKey` se calcula en `App` como `botCtx` según rol + vista/estado del pipeline o `faseVacante`), + acción fija **"Conectar con soporte"** (respuesta simulada de transferencia). **Mensajes:** chat directo persona a persona guardado en `db.chats`; helpers `chatThread`/`contactosChat`/`nombreDe`/`noLeidosChat`/`mismoPart`, acciones `ACT.enviarChat`/`ACT.marcarChatLeido` |
 | `PERFIL DE CANDIDATO` | `PerfilModal` (solo lectura, lo ve el formador; prop opcional `req` → resalta en verde esp/hard/soft coincidentes; **Batch 2:** muestra título destacado, resumen, intereses, experiencia y educación —bullets con `rangoFechas`/`fmtMes`, máx 3 + "Ver más"—; props opcionales `fav/enCat/archivado/onFav/onCat/onArchivar` → acciones favorito/categorizar/archivar cuando lo abre el formador) · `PerfilEditor` (editor del propio candidato: modal `wide` con pestañas *Mi perfil* / *Mis documentos*) |
 | `SUBIDA DE ARCHIVO` | `UploadPDF` (solo PDF, máx 1 MB; prop opcional `onDelete`), `UploadFoto` (imagen JPG/PNG ≤ 2 MB → data URL), `TagPicker`, `TagInput` (chips de texto libre con ✕ al hover, máx N) |
 | `FORMULARIO ESTANDARIZADO DE VACANTE` | `VacanteForm` (wizard de 4 pasos) |
@@ -84,7 +84,7 @@ ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana pa
 
 ## Conceptos clave
 
-- **Estado global:** un objeto `db` (`{ candidatos, vacantes, formadores, notifs }`) en `useState`
+- **Estado global:** un objeto `db` (`{ candidatos, vacantes, formadores, notifs, chats }`) en `useState`
   dentro de `App`. **Toda mutación pasa por `run(fn)`**, que hace `structuredClone(db)`, aplica
   `fn(nuevaDb)` y re-renderiza. Nunca mutar `db` directamente.
 - **Lógica de negocio:** el objeto **`ACT`** concentra todas las acciones (crear/editar/aprobar
