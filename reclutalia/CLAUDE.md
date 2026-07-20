@@ -80,7 +80,7 @@ Organizado por secciones con banners de comentario. **Para ubicar código, busca
 | `PANEL DEL CANDIDATO` | `CandidatoHome`, `VideoIAModal`, `KillerPreguntas` (killer questions compartidas), `PostulacionForm`, `CuentaBancoModal` (captura de número de cuenta/CLABE, Batch 5) · `MedicoAgendar` (Batch 6: captura
 ubicación + elige entre 5 sucursales simuladas + fecha de la próxima semana para el examen médico) · **Buscar Vacantes (Batch 3):** `BuscarVacantes` (tarjetas con filtros, orden y favoritos), `DetalleVacanteModal` (resalta en verde lo que coincide con el perfil del candidato), `AplicarModal` |
 | `PANEL DE ADMIN` | `AdminPanel`, `CandidatoForm` |
-| `APP` | Componente raíz: shell, sidebar, cambio de rol demo, ruteo por estado |
+| `APP` | Componente raíz: shell, sidebar, cambio de rol demo, ruteo por estado · **Móvil (≤900px):** header compacto (oculta nombre/puesto vía `.usermeta` y botón `.topbar-editperfil`; deja el `Avatar`, clickeable → `PerfilEditor` en candidato), botón `.hamb` (icono `Menu`) que abre un `.drawer` lateral con overlay (estado `drawer`); el drawer y el `<aside className="side">` comparten `SideBody()` (logo + NavItem + rolebox con selectores de rol/persona/estilo), sin duplicar lógica. El drawer usa tokens `--side-*` para respetar el tema activo |
 
 ## Conceptos clave
 

@@ -16,7 +16,7 @@ import {
   Upload, AlertCircle, Edit3, Star, MessageSquare, User, LayoutGrid,
   ClipboardList, Zap, Link2, CalendarCheck, FileSignature, Home, Filter, Heart,
   QrCode, Landmark, ExternalLink, ClipboardCheck,
-  Archive, ArchiveRestore, FolderPlus, Share2, Loader2, Check
+  Archive, ArchiveRestore, FolderPlus, Share2, Loader2, Check, Menu
 } from "lucide-react";
 
 /* ============================== ESTILOS ============================== */
@@ -89,7 +89,17 @@ const CSS_BASE = `
 .chip.bad{background:var(--bad-soft);border-color:#F0C4C1;color:var(--bad);}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
-@media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr;}.side{display:none;}}
+.hamb{display:none;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-2);width:38px;height:38px;align-items:center;justify-content:center;color:var(--ink2);flex-shrink:0;}
+.hamb:hover{border-color:var(--gold);}
+.drawer-overlay{display:none;position:fixed;inset:0;background:rgba(20,18,12,0.55);z-index:98;opacity:0;pointer-events:none;transition:opacity .22s ease-out;}
+.drawer-overlay.open{opacity:1;pointer-events:auto;}
+.drawer{display:none;position:fixed;top:0;left:0;bottom:0;width:272px;max-width:82vw;background:var(--side-bg);color:var(--side-text);border-right:1px solid var(--side-border);z-index:99;padding:20px 14px;flex-direction:column;gap:4px;overflow-y:auto;transform:translateX(-100%);transition:transform .24s ease-out;}
+.drawer.open{transform:translateX(0);}
+.drawer .rolebox{margin-top:24px;}
+.drawer-close{position:absolute;top:16px;right:12px;background:none;border:none;color:var(--side-text-dim);padding:6px;cursor:pointer;}
+.drawer-close:hover{color:var(--side-text);}
+@media(prefers-reduced-motion:reduce){.drawer,.drawer-overlay{transition:none;}}
+@media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr;}.side{display:none;}.hamb{display:flex;}.drawer{display:flex;}.drawer-overlay{display:block;}.usermeta{display:none;}.topbar-editperfil{display:none;}}
 .modal-bg{position:fixed;inset:0;background:var(--overlay);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;}
 .modal{background:var(--paper);color:var(--ink);border-radius:var(--r-4);max-width:640px;width:100%;max-height:88vh;overflow:auto;padding:24px;position:relative;box-shadow:var(--shadow-modal);}
 .modal.wide{max-width:860px;}
@@ -3322,6 +3332,7 @@ export default function App(){
   const [vista,setVista]=useState("inicio");
   const [vacAbierta,setVacAbierta]=useState(null);
   const [editPerfil,setEditPerfil]=useState(false);
+  const [drawer,setDrawer]=useState(false);
   const [toastMsg,setToastMsg]=useState("");
   const toast=(m)=>{ setToastMsg(m); setTimeout(()=>setToastMsg(""),2600); };
   const formador=db.formadores.find(f=>f.id===formadorId);
@@ -3332,62 +3343,70 @@ export default function App(){
   const abrirVac=(id)=>{ setVacAbierta(id); setVista("vacante"); };
   const NavItem=({id,icon:Icon,children})=>(
     <button className={"nav-item"+((vista===id||(id==="inicio"&&vista==="vacante"&&rol==="formador"))?" on":"")}
-      onClick={()=>{setVista(id); if(id!=="vacante") setVacAbierta(null);}}>
+      onClick={()=>{setVista(id); if(id!=="vacante") setVacAbierta(null); setDrawer(false);}}>
       <Icon size={16}/>{children}
     </button>
   );
+  // Contenido compartido del sidebar (desktop) y del drawer móvil — sin duplicar lógica.
+  const SideBody=()=>(<>
+    <div className="logo">
+      <div className="mark">R</div>
+      <div><b>Reclutalia</b><span>COBERTURA DE VACANTES</span></div>
+    </div>
+    {rol==="formador" && (<>
+      <NavItem id="inicio" icon={Home}>Mis vacantes</NavItem>
+      <NavItem id="notif" icon={Bell}>Notificaciones {noLeidas>0&&<span className="chip gold" style={{marginLeft:"auto"}}>{noLeidas}</span>}</NavItem>
+    </>)}
+    {rol==="admin" && (<>
+      <NavItem id="inicio" icon={LayoutGrid}>Vacantes</NavItem>
+      <NavItem id="nueva" icon={Plus}>Nueva vacante</NavItem>
+      <NavItem id="candidatos" icon={Users}>Pool de talento</NavItem>
+      <NavItem id="notif" icon={Bell}>Notificaciones {noLeidas>0&&<span className="chip gold" style={{marginLeft:"auto"}}>{noLeidas}</span>}</NavItem>
+    </>)}
+    {rol==="candidato" && (<>
+      <NavItem id="inicio" icon={Briefcase}>Mis procesos</NavItem>
+      <NavItem id="buscar" icon={Search}>Buscar vacantes</NavItem>
+      <NavItem id="notif" icon={Bell}>Notificaciones {noLeidas>0&&<span className="chip gold" style={{marginLeft:"auto"}}>{noLeidas}</span>}</NavItem>
+    </>)}
+    <div className="rolebox">
+      <p>VISTA DEMO — CAMBIAR ROL</p>
+      <select value={rol} onChange={e=>setRol(e.target.value)}>
+        <option value="formador">Formador de equipo</option>
+        <option value="admin">Administrador</option>
+        <option value="candidato">Candidato</option>
+      </select>
+      {rol==="formador" && (
+        <select style={{marginTop:8}} value={formadorId} onChange={e=>setFormadorId(e.target.value)}>
+          {db.formadores.map(f=><option key={f.id} value={f.id}>{f.nombre}</option>)}
+        </select>
+      )}
+      {rol==="candidato" && (
+        <select style={{marginTop:8}} value={candId} onChange={e=>setCandId(+e.target.value)}>
+          {db.candidatos.map(c=><option key={c.id} value={c.id}>{c.nombre}{Object.values(db.vacantes).some(v=>v.pipeline[c.id])?" · en proceso":""}</option>)}
+        </select>
+      )}
+      <p style={{marginTop:12}}>VISTA DEMO — CAMBIAR ESTILO</p>
+      <select style={{marginTop:8}} value={tema} onChange={e=>setTema(e.target.value)}>
+        {Object.values(THEMES).map(t=><option key={t.id} value={t.id}>{t.nombre}</option>)}
+      </select>
+    </div>
+  </>);
   const titulos={ inicio: rol==="formador"?"Mis vacantes":rol==="admin"?"Vacantes":"Mis procesos",
     vacantes:"Vacantes", nueva:"Nueva vacante", candidatos:"Pool de talento (marketplace)", buscar:"Buscar vacantes", notif:"Centro de notificaciones", vacante: vAb? vAb.req.titulo : "" };
   useEffect(()=>{ setVista("inicio"); setVacAbierta(null); },[rol]);
   return (
     <div className="rk" data-theme={tema}>
       <style>{CSS}</style>
-      <aside className="side">
-        <div className="logo">
-          <div className="mark">R</div>
-          <div><b>Reclutalia</b><span>COBERTURA DE VACANTES</span></div>
-        </div>
-        {rol==="formador" && (<>
-          <NavItem id="inicio" icon={Home}>Mis vacantes</NavItem>
-          <NavItem id="notif" icon={Bell}>Notificaciones {noLeidas>0&&<span className="chip gold" style={{marginLeft:"auto"}}>{noLeidas}</span>}</NavItem>
-        </>)}
-        {rol==="admin" && (<>
-          <NavItem id="inicio" icon={LayoutGrid}>Vacantes</NavItem>
-          <NavItem id="nueva" icon={Plus}>Nueva vacante</NavItem>
-          <NavItem id="candidatos" icon={Users}>Pool de talento</NavItem>
-          <NavItem id="notif" icon={Bell}>Notificaciones {noLeidas>0&&<span className="chip gold" style={{marginLeft:"auto"}}>{noLeidas}</span>}</NavItem>
-        </>)}
-        {rol==="candidato" && (<>
-          <NavItem id="inicio" icon={Briefcase}>Mis procesos</NavItem>
-          <NavItem id="buscar" icon={Search}>Buscar vacantes</NavItem>
-          <NavItem id="notif" icon={Bell}>Notificaciones {noLeidas>0&&<span className="chip gold" style={{marginLeft:"auto"}}>{noLeidas}</span>}</NavItem>
-        </>)}
-        <div className="rolebox">
-          <p>VISTA DEMO — CAMBIAR ROL</p>
-          <select value={rol} onChange={e=>setRol(e.target.value)}>
-            <option value="formador">Formador de equipo</option>
-            <option value="admin">Administrador</option>
-            <option value="candidato">Candidato</option>
-          </select>
-          {rol==="formador" && (
-            <select style={{marginTop:8}} value={formadorId} onChange={e=>setFormadorId(e.target.value)}>
-              {db.formadores.map(f=><option key={f.id} value={f.id}>{f.nombre}</option>)}
-            </select>
-          )}
-          {rol==="candidato" && (
-            <select style={{marginTop:8}} value={candId} onChange={e=>setCandId(+e.target.value)}>
-              {db.candidatos.map(c=><option key={c.id} value={c.id}>{c.nombre}{Object.values(db.vacantes).some(v=>v.pipeline[c.id])?" · en proceso":""}</option>)}
-            </select>
-          )}
-          <p style={{marginTop:12}}>VISTA DEMO — CAMBIAR ESTILO</p>
-          <select style={{marginTop:8}} value={tema} onChange={e=>setTema(e.target.value)}>
-            {Object.values(THEMES).map(t=><option key={t.id} value={t.id}>{t.nombre}</option>)}
-          </select>
-        </div>
-      </aside>
+      <aside className="side"><SideBody/></aside>
+      <div className={"drawer-overlay"+(drawer?" open":"")} onClick={()=>setDrawer(false)}/>
+      <nav className={"drawer"+(drawer?" open":"")} aria-hidden={!drawer}>
+        <button className="drawer-close" onClick={()=>setDrawer(false)} aria-label="Cerrar menú"><X size={20}/></button>
+        <SideBody/>
+      </nav>
       <div className="main">
         <header className="topbar">
-          <div style={{flex:1}}>
+          <button className="hamb" onClick={()=>setDrawer(true)} aria-label="Abrir menú"><Menu size={19}/></button>
+          <div style={{flex:1,minWidth:0}}>
             {vista==="vacante" && <div className="crumb" style={{cursor:"pointer"}} onClick={()=>setVista("inicio")}>← Volver a mis vacantes</div>}
             <h2>{titulos[vista]||""}</h2>
           </div>
@@ -3398,12 +3417,12 @@ export default function App(){
                title={rol==="candidato"?"Editar perfil":undefined}
                style={{display:"flex",alignItems:"center",gap:10,cursor:rol==="candidato"?"pointer":"default"}}>
             <Avatar nombre={rol==="formador"?formador.nombre:rol==="candidato"?candidato.nombre:ADMIN.nombre} foto={rol==="candidato"?candidato.foto:undefined}/>
-            <div>
+            <div className="usermeta">
               <div style={{fontSize:13,fontWeight:700}}>{rol==="formador"?formador.nombre:rol==="candidato"?candidato.nombre:ADMIN.nombre}</div>
               <div style={{fontSize:11,color:"var(--gray)"}}>{rol==="formador"?formador.puesto:rol==="candidato"?"Candidato":ADMIN.puesto}</div>
             </div>
           </div>
-          {rol==="candidato" && <button className="btn ghost sm" onClick={()=>setEditPerfil(true)}><Edit3 size={13}/> Editar perfil</button>}
+          {rol==="candidato" && <button className="btn ghost sm topbar-editperfil" onClick={()=>setEditPerfil(true)}><Edit3 size={13}/> Editar perfil</button>}
         </header>
         <div className="content">
           {rol==="formador" && vista==="inicio" && <FormadorHome db={db} formador={formador} run={run} onOpen={abrirVac}/>}
