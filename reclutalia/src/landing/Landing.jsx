@@ -99,15 +99,15 @@ section{scroll-margin-top:84px;}
 /* ---------- Hero ---------- */
 .hero{background:radial-gradient(1200px 620px at 78% -10%,rgba(255,184,28,0.14),transparent 60%),
   radial-gradient(700px 420px at -10% 110%,rgba(255,184,28,0.07),transparent 60%),var(--ink);
-  color:var(--txt-inv);position:relative;overflow:hidden;padding:calc(72px + clamp(56px,9vw,104px)) 0 clamp(64px,9vw,110px);}
+  color:var(--txt-inv);position:relative;overflow:hidden;padding:calc(72px + clamp(40px,6.5vw,72px)) 0 clamp(56px,8vw,96px);}
 .hero-r{position:absolute;right:-4%;top:-12%;font-family:var(--serif);font-weight:700;font-size:clamp(340px,52vw,720px);
   line-height:1;color:transparent;-webkit-text-stroke:1.5px rgba(255,184,28,0.13);user-select:none;pointer-events:none;}
 .hero-in{position:relative;display:grid;grid-template-columns:1.04fr 0.96fr;gap:clamp(32px,5vw,64px);align-items:center;}
-.hero h1{font-family:var(--serif);font-size:clamp(2.5rem,5.6vw,4.1rem);margin:22px 0 20px;}
+.hero h1{font-family:var(--serif);font-size:clamp(2.15rem,4.6vw,3.4rem);margin:18px 0 16px;max-width:15em;}
 .hero h1 em{font-style:normal;color:var(--gold);}
 .hero p.sub{font-size:clamp(1.05rem,1.6vw,1.22rem);color:var(--txt-inv-2);max-width:34em;}
-.hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:34px;}
-.hero-meta{display:flex;gap:22px;flex-wrap:wrap;margin-top:38px;color:var(--txt-inv-2);font-size:13.5px;}
+.hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:28px;}
+.hero-meta{display:flex;gap:22px;flex-wrap:wrap;margin-top:30px;color:var(--txt-inv-2);font-size:13.5px;}
 .hero-meta span{display:inline-flex;align-items:center;gap:8px;}
 .hero-meta svg{color:var(--gold);}
 
@@ -407,7 +407,7 @@ function Hero({onLogin}){
       <div className="wrap hero-in">
         <div>
           <span className="tag tag-gold-dk" data-rv><Sparkles size={13}/> El nuevo proceso de reclutamiento</span>
-          <h1 data-rv style={{"--i":1}}>Cubre tus vacantes de forma <em>autónoma</em>, de la búsqueda a la contratación.</h1>
+          <h1 data-rv style={{"--i":1}}>Automatiza y gestiona tu búsqueda de talento en <em>3 simples pasos</em></h1>
           <p className="sub" data-rv style={{"--i":2}}>
             Reclutalia pone el proceso completo en manos del jefe directo: la IA busca, filtra y
             entrevista; tú exploras, decides y contratas. Sin triangulaciones, sin esperas y con

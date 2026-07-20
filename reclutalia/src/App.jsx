@@ -200,6 +200,8 @@ img.avatar{object-fit:cover;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--accent-dark-bg);color:var(--accent-dark-text);padding:11px 20px;border-radius:var(--r-pill);font-size:13px;font-weight:600;z-index:200;box-shadow:0 10px 30px rgba(0,0,0,0.3);display:flex;gap:8px;align-items:center;}
 .slotbtn{border:1.5px solid var(--line);background:var(--paper);border-radius:var(--r-2);padding:10px;font-size:12.5px;text-align:center;font-weight:600;color:var(--ink2);}
 .slotbtn.on{border-color:var(--gold);background:var(--gold-soft);color:var(--gold-dark);}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.table-scroll .table{min-width:640px;}
 .table{width:100%;border-collapse:collapse;font-size:13px;}
 .table th{text-align:left;font-size:11px;letter-spacing:0.06em;color:var(--gray);padding:8px 10px;border-bottom:1px solid var(--line);}
 .table td{padding:10px;border-bottom:1px solid #F0EEE7;}
@@ -3503,6 +3505,7 @@ function AdminPanel({db, run, toast, vista, setVista}){
         <button className="btn gold" onClick={()=>setEditC(null)}><Plus size={15}/> Subir candidato</button>
       </div>
       <div className="card" style={{padding:0,overflow:"hidden"}}>
+        <div className="table-scroll">
         <table className="table">
           <thead><tr><th>CANDIDATO</th><th>ÁREA / NIVEL</th><th>ESPECIALIDADES</th><th>CIUDAD</th><th>TIPO</th><th></th></tr></thead>
           <tbody>
@@ -3521,6 +3524,7 @@ function AdminPanel({db, run, toast, vista, setVista}){
             ))}
           </tbody>
         </table>
+        </div>
       </div>
       {editC!==undefined && <CandidatoForm inicial={editC} onClose={()=>setEditC(undefined)}
         onSave={(c)=>{run(d=>ACT.guardarCandidato(d,c)); setEditC(undefined); toast("Perfil guardado en el marketplace");}}/>}
