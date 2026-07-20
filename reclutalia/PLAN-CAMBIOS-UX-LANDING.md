@@ -3,7 +3,7 @@
 Plan por batches, **modo ejecución directa optimizada en tokens**. Un batch por turno, en orden.
 Marcar ✅ al terminar cada batch (editar este archivo).
 
-**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ⬜
+**Estado:** Batch 1 ✅ · Batch 2 ✅ · Batch 3 ✅ — PLAN COMPLETO
 
 > Ejecutar DESPUÉS de terminar `PLAN-CAMBIOS-FORMADOR-ADMIN.md` (el Batch 2 de este plan
 > referencia las 3 fases del proceso que introduce aquel plan en su Batch 4).
@@ -89,7 +89,7 @@ del sidebar (extraer a un componente compartido si simplifica).
 
 ---
 
-## BATCH 3 — Landing page promocional ⬜
+## BATCH 3 — Landing page promocional ✅
 
 (Punto 3.) **Página NUEVA, separada de la plataforma** — no tocar `App.jsx` salvo nada.
 

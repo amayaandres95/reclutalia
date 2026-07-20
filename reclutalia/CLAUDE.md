@@ -60,6 +60,17 @@ y NO se despliega**. Ignorarla / no editarla.
 toda la app está en un solo archivo `src/App.jsx` (~1700 líneas).** Tenerlo presente al planear
 refactors o al escalar hacia el producto real.
 
+**Landing promocional (Batch 3 UX):** página independiente en **`/landing`** — entrada Vite
+propia (`landing.html` → `src/landing/main.jsx` → `src/landing/Landing.jsx`, CSS-en-string,
+mismo patrón que la app). `vite.config.js` declara ambas entradas (`index.html` + `landing.html`,
+ESM con `fileURLToPath`); `vercel.json` con `cleanUrls:true` para que sirva en `/landing`.
+Contenido: header fijo con anclas + hamburguesa, hero oscuro con mockups CSS flotantes y motivo
+"R" con parallax, beneficios (3 etapas + chatbot), secciones Búsqueda/Selección/Contratación
+alternando fondos claros/oscuros, chatbot transversal y CTA final con **login simulado** (modal:
+número de empleado/contraseña sin validar + botón Microsoft; todo redirige a `/`).
+Reveal-on-scroll con IntersectionObserver, `prefers-reduced-motion` respetado, contraste AA,
+íconos lucide. No toca `src/App.jsx`.
+
 ### Mapa interno de `src/App.jsx`
 
 Organizado por secciones con banners de comentario. **Para ubicar código, busca el banner**
