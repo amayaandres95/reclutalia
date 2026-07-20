@@ -16,7 +16,7 @@ import {
   Upload, AlertCircle, Edit3, Star, MessageSquare, User, LayoutGrid,
   ClipboardList, Zap, Link2, CalendarCheck, FileSignature, Home, Filter, Heart,
   QrCode, Landmark, ExternalLink, ClipboardCheck,
-  Archive, ArchiveRestore, FolderPlus, Share2, Loader2, Check, Menu
+  Archive, ArchiveRestore, FolderPlus, Share2, Loader2, Check, Menu, Trash2
 } from "lucide-react";
 
 /* ============================== ESTILOS ============================== */
@@ -135,6 +135,20 @@ button.fase-sub.on{background:var(--accent-dark-bg);border-color:var(--accent-da
 .avatar{width:40px;height:40px;border-radius:99px;background:var(--ink);color:var(--gold);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
 .trow{display:flex;align-items:center;gap:14px;padding:13px 14px;border:1px solid var(--line);border-radius:var(--r-3);background:var(--paper);}
 .trow+.trow{margin-top:10px;}
+/* Editor de perfil: filas de experiencia/educación (labels arriba, fechas con indicador, eliminar en rojo) */
+.pe-row{display:grid;grid-template-columns:1.25fr 1.1fr 132px 132px 38px;gap:10px;align-items:end;margin-top:10px;}
+.pe-cell{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.pe-cell>span{font-size:10.5px;font-weight:700;letter-spacing:0.05em;color:var(--gray);text-transform:uppercase;}
+.pe-datein{position:relative;}
+.pe-datein input{width:100%;padding-right:32px;}
+.pe-datein>svg{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--gray);pointer-events:none;}
+.pe-datein input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}
+.pe-del{width:38px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:var(--paper);border:1px solid var(--bad);color:var(--bad);border-radius:var(--r-2);}
+.pe-del:hover{background:var(--bad);color:#fff;}
+@media(max-width:900px){
+  .pe-row{grid-template-columns:1fr;align-items:stretch;padding-bottom:14px;border-bottom:1px dashed var(--line);}
+  .pe-del{width:100%;}
+}
 .trow:hover{border-color:#CFC9BD;}
 .notif{display:flex;gap:12px;padding:13px 14px;border-radius:var(--r-3);border:1px solid var(--line);background:var(--paper);align-items:flex-start;}
 .notif.unread{background:var(--gold-soft);border-color:#F0D9A5;}
@@ -1225,12 +1239,16 @@ function PerfilEditor({cand, onSave, onClose}){
         <div className="field">
           <label>Experiencia</label>
           {c.experiencia.map((e,i)=>(
-            <div className="trow" key={i} style={{flexWrap:"wrap"}}>
-              <input placeholder="Puesto" value={e.puesto} onChange={ev=>setExp(i,"puesto",ev.target.value)} style={{flex:"1 1 170px"}}/>
-              <input placeholder="Empresa" value={e.empresa} onChange={ev=>setExp(i,"empresa",ev.target.value)} style={{flex:"1 1 150px"}}/>
-              <input type="month" value={e.inicio} onChange={ev=>setExp(i,"inicio",ev.target.value)} style={{flex:"0 1 140px"}} title="Inicio"/>
-              <input type="month" value={e.fin} onChange={ev=>setExp(i,"fin",ev.target.value)} style={{flex:"0 1 140px"}} title="Fin (vacío = actual)"/>
-              <button className="btn ghost sm" onClick={()=>delExp(i)} title="Eliminar"><X size={13}/></button>
+            <div className="pe-row" key={i}>
+              <div className="pe-cell"><span>Puesto</span>
+                <input placeholder="Ej. Ejecutivo de ventas" value={e.puesto} onChange={ev=>setExp(i,"puesto",ev.target.value)}/></div>
+              <div className="pe-cell"><span>Empresa</span>
+                <input placeholder="Ej. Grupo Salinas" value={e.empresa} onChange={ev=>setExp(i,"empresa",ev.target.value)}/></div>
+              <div className="pe-cell"><span>Inicio · mes/año</span>
+                <div className="pe-datein"><input type="month" value={e.inicio} onChange={ev=>setExp(i,"inicio",ev.target.value)} title="Mes y año de inicio"/><Calendar size={14}/></div></div>
+              <div className="pe-cell"><span>Fin · mes/año</span>
+                <div className="pe-datein"><input type="month" value={e.fin} onChange={ev=>setExp(i,"fin",ev.target.value)} title="Mes y año de fin (vacío = actual)"/><Calendar size={14}/></div></div>
+              <button className="pe-del" onClick={()=>delExp(i)} title="Eliminar registro" aria-label="Eliminar registro"><Trash2 size={15}/></button>
             </div>
           ))}
           <button className="btn ghost sm" style={{marginTop:10}} onClick={addExp}><Plus size={13}/> Agregar experiencia</button>
@@ -1239,12 +1257,16 @@ function PerfilEditor({cand, onSave, onClose}){
         <div className="field">
           <label>Educación</label>
           {c.educacion.map((e,i)=>(
-            <div className="trow" key={i} style={{flexWrap:"wrap"}}>
-              <input placeholder="Institución" value={e.institucion} onChange={ev=>setEdu(i,"institucion",ev.target.value)} style={{flex:"1 1 170px"}}/>
-              <input placeholder="Título / grado" value={e.titulo} onChange={ev=>setEdu(i,"titulo",ev.target.value)} style={{flex:"1 1 150px"}}/>
-              <input type="month" value={e.inicio} onChange={ev=>setEdu(i,"inicio",ev.target.value)} style={{flex:"0 1 140px"}} title="Inicio"/>
-              <input type="month" value={e.fin} onChange={ev=>setEdu(i,"fin",ev.target.value)} style={{flex:"0 1 140px"}} title="Fin"/>
-              <button className="btn ghost sm" onClick={()=>delEdu(i)} title="Eliminar"><X size={13}/></button>
+            <div className="pe-row" key={i}>
+              <div className="pe-cell"><span>Institución</span>
+                <input placeholder="Ej. UNAM" value={e.institucion} onChange={ev=>setEdu(i,"institucion",ev.target.value)}/></div>
+              <div className="pe-cell"><span>Título / grado</span>
+                <input placeholder="Ej. Lic. en Administración" value={e.titulo} onChange={ev=>setEdu(i,"titulo",ev.target.value)}/></div>
+              <div className="pe-cell"><span>Inicio · mes/año</span>
+                <div className="pe-datein"><input type="month" value={e.inicio} onChange={ev=>setEdu(i,"inicio",ev.target.value)} title="Mes y año de inicio"/><Calendar size={14}/></div></div>
+              <div className="pe-cell"><span>Fin · mes/año</span>
+                <div className="pe-datein"><input type="month" value={e.fin} onChange={ev=>setEdu(i,"fin",ev.target.value)} title="Mes y año de fin"/><Calendar size={14}/></div></div>
+              <button className="pe-del" onClick={()=>delEdu(i)} title="Eliminar registro" aria-label="Eliminar registro"><Trash2 size={15}/></button>
             </div>
           ))}
           <button className="btn ghost sm" style={{marginTop:10}} onClick={addEdu}><Plus size={13}/> Agregar educación</button>
