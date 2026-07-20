@@ -2347,7 +2347,7 @@ function VacanteDetail({db, v, run, toast}){
   /* Pool de talento (Batch 1): búsqueda IA, filtros, archivados, categorizar, compartir, solicitar más */
   const [buscando,setBuscando]=useState(false);
   const [fOpen,setFOpen]=useState(false);
-  const [fVals,setFVals]=useState({skills:[],expMin:0,edu:"",tipo:"ambos"});
+  const [fVals,setFVals]=useState({skills:[],expMin:0,edu:"",tipo:"ambos",fav:false,cat:""});
   const [verArch,setVerArch]=useState(false);
   const [catCand,setCatCand]=useState(null);
   const [shareCand,setShareCand]=useState(null);
@@ -2363,9 +2363,11 @@ function VacanteDetail({db, v, run, toast}){
     if(fVals.expMin && c.exp<Number(fVals.expMin)) return false;
     if(fVals.edu && EDUCACION.indexOf(c.edu)<EDUCACION.indexOf(fVals.edu)) return false;
     if(fVals.skills.length && !fVals.skills.every(s=>c.hard.includes(s)||c.soft.includes(s))) return false;
+    if(fVals.fav && !favs.includes(c.id)) return false;
+    if(fVals.cat){ const cat=cats.find(x=>x.nombre===fVals.cat); if(!cat || !cat.cids.includes(c.id)) return false; }
     return true;
   };
-  const fActivo = fVals.skills.length>0 || Number(fVals.expMin)>0 || !!fVals.edu || fVals.tipo!=="ambos";
+  const fActivo = fVals.skills.length>0 || Number(fVals.expMin)>0 || !!fVals.edu || fVals.tipo!=="ambos" || fVals.fav || !!fVals.cat;
   const enCategoria=(cid)=> cats.some(c=>c.cids.includes(cid));
   const pipe=Object.entries(v.pipeline).map(([cid,p])=>({cid:Number(cid),p,c:cand(cid)}));
   const evaluados=pipe.filter(x=>["evaluado","slots_enviados","agendado","entrevistado","seleccionado","docs_completos","oferta_enviada","contratado"].includes(x.p.estado))
@@ -2468,6 +2470,12 @@ function VacanteDetail({db, v, run, toast}){
 
           <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:12}}>
             <button className={"btn sm "+(fActivo?"gold":"ghost")} onClick={()=>setFOpen(o=>!o)}><Filter size={13}/> Filtrar{fActivo?" · activos":""}</button>
+            <button className={"btn sm "+(fVals.fav?"gold":"ghost")} title="Ver solo mis candidatos favoritos"
+              onClick={()=>setFVals(x=>({...x,fav:!x.fav}))}><Heart size={13}/> Favoritos{favs.length?` (${favs.length})`:""}</button>
+            {cats.map(cat=>(
+              <button key={cat.nombre} className={"btn sm "+(fVals.cat===cat.nombre?"gold":"ghost")} title={"Ver solo la categoría \""+cat.nombre+"\""}
+                onClick={()=>setFVals(x=>({...x,cat:x.cat===cat.nombre?"":cat.nombre}))}><FolderPlus size={13}/> {cat.nombre}</button>
+            ))}
             <span className="help">{poolVis.length} de {poolAll.length-poolArch.length} candidato(s){fActivo?" tras filtros":""}</span>
             <div style={{flex:1}}/>
             {poolArch.length>0 && <button className="btn ghost sm" onClick={()=>setVerArch(a=>!a)}><Archive size={13}/> {verArch?"Ocultar":"Ver"} archivados ({poolArch.length})</button>}
@@ -2479,7 +2487,7 @@ function VacanteDetail({db, v, run, toast}){
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
                 <b style={{fontSize:13.5}}><Filter size={14} style={{verticalAlign:-2}}/> Filtrar candidatos del pool</b>
                 <div style={{flex:1}}/>
-                <button className="btn ghost sm" onClick={()=>setFVals({skills:[],expMin:0,edu:"",tipo:"ambos"})}>Limpiar filtros</button>
+                <button className="btn ghost sm" onClick={()=>setFVals({skills:[],expMin:0,edu:"",tipo:"ambos",fav:false,cat:""})}>Limpiar filtros</button>
               </div>
               {filtroSkills.length>0 && (
                 <div className="field">
@@ -2509,7 +2517,7 @@ function VacanteDetail({db, v, run, toast}){
               {fActivo ? (<>
                 <Filter size={26} color="var(--gray)" style={{marginBottom:8}}/>
                 <p style={{color:"var(--gray)"}}>Ningún candidato coincide con los filtros seleccionados.</p>
-                <button className="btn ghost sm" style={{marginTop:12}} onClick={()=>setFVals({skills:[],expMin:0,edu:"",tipo:"ambos"})}>Limpiar filtros</button>
+                <button className="btn ghost sm" style={{marginTop:12}} onClick={()=>setFVals({skills:[],expMin:0,edu:"",tipo:"ambos",fav:false,cat:""})}>Limpiar filtros</button>
               </>):(<>
                 <Users size={30} color="var(--gold-dark)" style={{marginBottom:10}}/>
                 <h3 style={{fontSize:16,marginBottom:6}}>No hay candidatos compatibles disponibles</h3>
