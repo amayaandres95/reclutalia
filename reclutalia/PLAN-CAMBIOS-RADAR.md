@@ -18,6 +18,12 @@ Marcar ✅ al terminar cada batch (editar este archivo).
 6. Cierre ultra breve (~8 líneas) + "¿Commit y push?" con el mensaje sugerido.
 7. Ambigüedades menores: criterio más simple + 1 línea de nota.
 8. Skill `ui-ux-pro-max` disponible para decisiones visuales (batches 1, 4, 5 y 6).
+9. **RESPONSIVE OBLIGATORIO:** todo elemento nuevo o modificado debe adaptarse al breakpoint
+   móvil existente (≤900px) en el MISMO batch — no dejarlo para después. Criterios: nada de
+   scroll horizontal; grids de 2+ columnas colapsan a 1 (o 2x2 en métricas); chips y filas de
+   botones hacen wrap; modales a ancho completo con scroll interno; touch targets ≥44px;
+   textos legibles ≥14px. Al cerrar cada batch, confirmar en 1 línea del resumen que se
+   revisó móvil.
 
 ### Decisiones ya tomadas (no re-decidir)
 
@@ -66,7 +72,8 @@ Al hacer clic, hace scroll/filtra para ver sus vacantes cerradas (histórico).
 **1.4 Timeline de 3 fases en tarjetas (P5).** En las tarjetas del home, las 3 fases se ven
 como **línea de tiempo conectada** (nodos unidos por línea continua, la completada en verde,
 la actual resaltada) ocupando el ancho completo de la tarjeta. **Eliminar el texto de etapa**
-(ej. "Etapa 1 – Descriptivo") de las tarjetas.
+(ej. "Etapa 1 – Descriptivo") de las tarjetas. *Móvil:* la timeline se mantiene horizontal a
+ancho completo con etiquetas compactas (o solo nodos + etiqueta de la fase actual si no cabe).
 
 **Commit:** `Radar de Candidatos: rebranding, días activa, histórico de completadas y timeline de fases`
 
@@ -197,7 +204,9 @@ referencia; generar los datos simulados por candidato):
 8. Footer gris pequeño: "Generado por IA a partir del cuestionario de skills, la
    video-entrevista y los filtros automáticos. Apoya la decisión del formador; no la
    sustituye."
-Todo determinista por candidato (derivar números del id/match).
+Todo determinista por candidato (derivar números del id/match). *Móvil:* las 2 columnas de
+habilidades colapsan a 1; el modal ocupa el ancho completo con scroll interno; el score y el
+header se reacomodan sin encimarse.
 
 **4.4 Estrellas 5 (P13).** La calificación de entrevista pasa de 10 a **5 estrellas** (ajustar
 captura y todos los displays `n/5 ⭐`; datos previos se muestran convertidos si existieran).
@@ -276,6 +285,7 @@ de celebración (nombre/número/fecha) por:
 - Sección **"Proceso completado"** con 4 métricas en números GRANDES sobre su descripción:
   **10** días de cobertura · **3** decisiones del formador · **100%** digital y trazado ·
   **{n}** candidatos que regresan al pool (conteo real de descartados de la vacante).
+  *Móvil:* las 4 métricas en grid 2x2.
 - Debajo: **"Califica tu experiencia"** — 5 estrellas grandes; al elegir una → mensaje de
   confirmación y agradecimiento por la retroalimentación.
 - Mantener el confetti/tono celebratorio como marco si queda bien.
