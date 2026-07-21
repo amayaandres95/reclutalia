@@ -2233,8 +2233,11 @@ function Celebracion({cand, p, v}){
 }
 
 /* Overlay de búsqueda con IA al aprobar el descriptivo (Batch 1 · F3 · 5 s simulados) */
-function BusquedaIAOverlay({onDone}){
-  const msgs=["Analizando el marketplace de talento…","Comparando habilidades y experiencia…","Generando ranking de compatibilidad…"];
+/* Overlay de proceso IA (5 s). Sin props extra = búsqueda de talento del formador;
+   acepta titulo/desc/msgs para reutilizarlo (p. ej. validación de documentos del candidato). */
+function BusquedaIAOverlay({onDone, titulo="La IA está buscando tu talento",
+  desc="Analizando a los candidatos del pool y ordenándolos por compatibilidad con tu vacante.",
+  msgs=["Analizando el marketplace de talento…","Comparando habilidades y experiencia…","Generando ranking de compatibilidad…"]}){
   const [i,setI]=useState(0);
   useEffect(()=>{
     const iv=setInterval(()=>setI(x=>(x+1)%msgs.length),1600);
@@ -2245,8 +2248,8 @@ function BusquedaIAOverlay({onDone}){
     <div className="modal-bg">
       <div className="modal" style={{maxWidth:420,textAlign:"center",padding:"38px 30px"}}>
         <Loader2 size={46} className="ai-spin"/>
-        <h3 style={{marginTop:16,color:"var(--ai)"}}>La IA está buscando tu talento</h3>
-        <p className="help" style={{marginTop:6}}>Analizando a los candidatos del pool y ordenándolos por compatibilidad con tu vacante.</p>
+        <h3 style={{marginTop:16,color:"var(--ai)"}}>{titulo}</h3>
+        <p className="help" style={{marginTop:6}}>{desc}</p>
         <div className="ai-search-msg">{msgs[i]}</div>
         <div className="mini-pipe" style={{marginTop:14}}>{msgs.map((_,k)=><i key={k} className={k<=i?"f":""} style={k<=i?{background:"var(--ai)"}:{}}/>)}</div>
       </div>
@@ -2884,6 +2887,7 @@ function MedicoAgendar({onAgendar}){
 
 function CandidatoHome({db, cand, run, toast, onBuscar}){
   const [videoV,setVideoV]=useState(null);
+  const [validando,setValidando]=useState(null);   /* vacante cuyos documentos se están "validando" (animación IA) */
   const [confirmOferta,setConfirmOferta]=useState(null);
   const [feedbackDe,setFeedbackDe]=useState(null);
   const [filtro,setFiltro]=useState("todos");
@@ -2999,7 +3003,7 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
                   <span style={{flex:1,fontSize:13,lineHeight:1.5}}>Autorizo a Reclutalia a procesar mis documentos y a revisar mi historial de crédito y de empleos previos como parte de los filtros iniciales.</span>
                 </label>
                 <button className="btn dark" style={{marginTop:12}} disabled={!filtroDocsOk}
-                  onClick={()=>{run(d=>ACT.docsFiltroListos(d,v.id,cand.id)); toast("Filtros automáticos aprobados");}}>
+                  onClick={()=>setValidando(v)}>
                   <ShieldCheck size={15}/> Enviar a validación automática
                 </button>
                 {!filtroDocsOk && <div className="help" style={{marginTop:6}}>Para continuar: sube al menos una constancia de empleo, completa el examen psicométrico y marca la autorización.</div>}
@@ -3187,6 +3191,11 @@ function CandidatoHome({db, cand, run, toast, onBuscar}){
         onRechazar={(motivo)=>{ run(d=>ACT.rechazarInvitacion(d,rechazarDe.id,cand.id,motivo)); setRechazarDe(null); toast("Invitación rechazada · se notificó al formador"); }}/>}
       {videoV && <VideoIAModal cand={cand} v={videoV} onClose={()=>setVideoV(null)}
         onDone={()=>{run(d=>ACT.videoIA(d,videoV.id,cand.id)); setVideoV(null); toast("Video-entrevista enviada · tu ranking fue actualizado");}}/>}
+      {validando && <BusquedaIAOverlay
+        titulo="Validando tu documentación"
+        desc="Estamos revisando automáticamente tus documentos y antecedentes para esta vacante."
+        msgs={["Verificando constancias de empleos previos…","Consultando historial de crédito y PLD…","Validando examen psicométrico y autorización…"]}
+        onDone={()=>{ run(d=>ACT.docsFiltroListos(d,validando.id,cand.id)); setValidando(null); toast("Filtros automáticos aprobados"); }}/>}
       {confirmOferta && (
         <Modal onClose={()=>setConfirmOferta(null)}>
           <h3 style={{marginBottom:8}}>Aceptar oferta y fecha de contratación</h3>
